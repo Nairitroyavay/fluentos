@@ -11,22 +11,13 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
-      ),
-      GoRoute(
-        path: '/auth',
-        builder: (context, state) => const AuthScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
+      GoRoute(path: '/auth', builder: (context, state) => const AuthScreen()),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const MainShell(),
-      ),
+      GoRoute(path: '/home', builder: (context, state) => const MainShell()),
       GoRoute(
         path: '/premium',
         builder: (context, state) => const PremiumPreviewScreen(),

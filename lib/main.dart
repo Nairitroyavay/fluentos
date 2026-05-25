@@ -4,11 +4,7 @@ import 'core/router.dart';
 import 'core/theme.dart';
 
 void main() {
-  runApp(
-    const ProviderScope(
-      child: FluentOSApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: FluentOSApp()));
 }
 
 class FluentOSApp extends ConsumerWidget {
@@ -17,7 +13,7 @@ class FluentOSApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    
+
     return MaterialApp.router(
       title: 'FluentOS',
       debugShowCheckedModeBanner: false,

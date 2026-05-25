@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../core/theme.dart';
 
 class PremiumPreviewScreen extends StatelessWidget {
@@ -10,58 +11,84 @@ class PremiumPreviewScreen extends StatelessWidget {
     return Scaffold(
       body: LiquidBackground(
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(),
-                const Icon(Icons.diamond, size: 80, color: AppTheme.primaryCyan),
-                const SizedBox(height: 24),
-                const Text(
-                  'Unlock FluentOS Premium',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Learn multiple languages, get unlimited speaking scenarios, and advanced AI corrections.',
-                  style: TextStyle(fontSize: 16, color: Colors.white70),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                GlassCard(
-                  child: Column(
-                    children: [
-                      _buildFeature('Unlimited Languages'),
-                      const SizedBox(height: 12),
-                      _buildFeature('Custom Scenarios'),
-                      const SizedBox(height: 12),
-                      _buildFeature('Deep Dive Corrections'),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryViolet,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton.filledTonal(
+                        tooltip: 'Back',
+                        onPressed: () => _close(context),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
                     ),
-                    onPressed: () {
-                      context.pop();
-                    },
-                    child: const Text('Upgrade Now', style: TextStyle(fontSize: 18, color: Colors.white)),
-                  ),
+                    const SizedBox(height: 26),
+                    const _PremiumOrb(),
+                    const SizedBox(height: 28),
+                    const Text(
+                      'FluentOS Premium',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        height: 1.05,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Multiple active languages are reserved for Premium.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 17,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 26),
+                    GlassCard(
+                      color: AppTheme.primaryViolet.withAlpha(28),
+                      child: const Column(
+                        children: [
+                          _PremiumFeature(
+                            icon: Icons.language_rounded,
+                            title: 'Multiple target languages',
+                            copy: 'Switch without losing your active tracks.',
+                          ),
+                          SizedBox(height: 16),
+                          _PremiumFeature(
+                            icon: Icons.all_inclusive_rounded,
+                            title: 'Unlimited speaking missions',
+                            copy: 'More scenarios for repeat practice.',
+                          ),
+                          SizedBox(height: 16),
+                          _PremiumFeature(
+                            icon: Icons.auto_fix_high_rounded,
+                            title: 'Deeper corrections',
+                            copy: 'Expanded notes for grammar and tone.',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    PrimaryActionButton(
+                      label: 'Preview only',
+                      icon: Icons.visibility_rounded,
+                      onPressed: () => _close(context),
+                    ),
+                    const SizedBox(height: 12),
+                    SecondaryActionButton(
+                      label: 'Maybe later',
+                      icon: Icons.close_rounded,
+                      onPressed: () => _close(context),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => context.pop(),
-                  child: const Text('Maybe later', style: TextStyle(color: Colors.white54)),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -69,12 +96,92 @@ class PremiumPreviewScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeature(String text) {
+  void _close(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+
+    context.go('/home');
+  }
+}
+
+class _PremiumOrb extends StatelessWidget {
+  const _PremiumOrb();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 124,
+        height: 124,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.primaryCyan,
+              AppTheme.primaryBlue,
+              AppTheme.primaryViolet,
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryCyan.withAlpha(84),
+              blurRadius: 44,
+              spreadRadius: 4,
+            ),
+            BoxShadow(
+              color: AppTheme.primaryViolet.withAlpha(92),
+              blurRadius: 60,
+              offset: const Offset(0, 20),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.diamond_rounded, color: Colors.white, size: 52),
+      ),
+    );
+  }
+}
+
+class _PremiumFeature extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String copy;
+
+  const _PremiumFeature({
+    required this.icon,
+    required this.title,
+    required this.copy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.check, color: AppTheme.primaryCyan),
+        Icon(icon, color: AppTheme.primaryCyan),
         const SizedBox(width: 12),
-        Text(text, style: const TextStyle(fontSize: 16)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                copy,
+                style: const TextStyle(color: Colors.white60, height: 1.35),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
