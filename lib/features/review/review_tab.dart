@@ -11,159 +11,165 @@ class ReviewTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reviews = ref.watch(reviewsProvider);
-    final pendingCount = reviews.where((item) => !item.isMastered).length;
+    final language = ref.watch(languageProvider);
+    final due = reviews.where((item) => !item.isMastered).toList();
+    final saved = reviews.where((item) => item.isSavedPhrase).toList();
+    final mastered = reviews.where((item) => item.isMastered).toList();
 
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 118),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Review',
-              style: Theme.of(
-                context,
-              ).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '$pendingCount active mistakes',
-              style: const TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: reviews.isEmpty
-                  ? const _EmptyReviewState()
-                  : ListView.separated(
-                      itemCount: reviews.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        return _ReviewCard(item: reviews[index]);
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ReviewCard extends ConsumerWidget {
-  final ReviewItem item;
-
-  const _ReviewCard({required this.item});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: AppPill(
-                  label: item.missionTitle,
-                  icon: Icons.flag_rounded,
+      child: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 14),
+            sliver: SliverToBoxAdapter(
+              child: FluentHeader(
+                title: 'Review',
+                subtitle: reviews.isEmpty
+                    ? 'Your personal mistake memory starts after speaking.'
+                    : '${due.length} due today - ${mastered.length} mastered',
+                trailing: AppPill(
+                  label: language?.name ?? 'No language',
+                  icon: Icons.history_edu_rounded,
                 ),
               ),
-              const SizedBox(width: 10),
-              Text(
-                _shortDate(item.dateAdded),
-                style: const TextStyle(color: Colors.white54),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
-          _ReviewLine(
-            icon: Icons.close_rounded,
-            color: Colors.white54,
-            text: item.correction.originalText,
-            strikeThrough: true,
-          ),
-          const SizedBox(height: 10),
-          _ReviewLine(
-            icon: Icons.check_rounded,
-            color: AppTheme.primaryCyan,
-            text: item.correction.correctedText,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            item.correction.explanation,
-            style: const TextStyle(color: Colors.white70, height: 1.35),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Checkbox(
-                value: item.isMastered,
-                activeColor: AppTheme.success,
-                checkColor: AppTheme.backgroundDark,
-                onChanged: (_) {
-                  ref.read(reviewsProvider.notifier).toggleMastered(item.id);
-                },
-              ),
-              const Expanded(
-                child: Text(
-                  'Reviewed',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w700,
+          if (reviews.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(24, 24, 24, 118),
+                child: Center(
+                  child: EmptyStateCard(
+                    icon: Icons.history_edu_rounded,
+                    title: 'Your review queue is empty',
+                    body:
+                        'Complete a speaking session to create your first review card.',
                   ),
                 ),
               ),
-              AppPill(
-                label: item.correction.focusArea,
-                icon: Icons.psychology_alt_rounded,
-                color: AppTheme.primaryViolet,
+            )
+          else ...[
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+              sliver: SliverToBoxAdapter(
+                child: _ReviewStats(
+                  dueCount: due.length,
+                  savedCount: saved.length,
+                  masteredCount: mastered.length,
+                ),
               ),
-            ],
-          ),
+            ),
+            _ReviewSection(title: 'Due today', items: due),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+              sliver: SliverToBoxAdapter(
+                child: _SavedPhrasesCard(items: saved),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+              sliver: SliverToBoxAdapter(
+                child: _WeakSoundsCard(language: language, reviews: reviews),
+              ),
+            ),
+            _ReviewSection(title: 'Mastered', items: mastered),
+            const SliverPadding(padding: EdgeInsets.only(bottom: 118)),
+          ],
         ],
       ),
     );
   }
+}
 
-  String _shortDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '$month/$day';
+class _ReviewSection extends ConsumerWidget {
+  final String title;
+  final List<ReviewItem> items;
+
+  const _ReviewSection({required this.title, required this.items});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          SectionTitle(title: title),
+          const SizedBox(height: 10),
+          if (items.isEmpty)
+            EmptyStateCard(
+              icon: title == 'Mastered'
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.mic_none_rounded,
+              title: title == 'Mastered'
+                  ? 'Nothing mastered yet'
+                  : 'Nothing due',
+              body: title == 'Mastered'
+                  ? 'Repeat a correction and mark it mastered when it feels natural.'
+                  : 'New review cards appear after completed speaking sessions.',
+            )
+          else
+            for (final item in items) ...[
+              ReviewCard(
+                item: item,
+                onRepeat: () {
+                  ref.read(reviewsProvider.notifier).markReviewed(item.id);
+                  ref.read(mainTabProvider.notifier).setIndex(1);
+                },
+                onToggleMastered: () {
+                  ref.read(reviewsProvider.notifier).toggleMastered(item.id);
+                },
+                onTogglePhrase: () {
+                  ref.read(reviewsProvider.notifier).toggleSavedPhrase(item.id);
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+        ]),
+      ),
+    );
   }
 }
 
-class _ReviewLine extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String text;
-  final bool strikeThrough;
+class _ReviewStats extends StatelessWidget {
+  final int dueCount;
+  final int savedCount;
+  final int masteredCount;
 
-  const _ReviewLine({
-    required this.icon,
-    required this.color,
-    required this.text,
-    this.strikeThrough = false,
+  const _ReviewStats({
+    required this.dueCount,
+    required this.savedCount,
+    required this.masteredCount,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 17,
-              height: 1.3,
-              fontWeight: FontWeight.w800,
-              color: strikeThrough ? Colors.white54 : Colors.white,
-              decoration: strikeThrough ? TextDecoration.lineThrough : null,
-              decorationColor: Colors.white54,
-            ),
+          child: MetricCard(
+            icon: Icons.pending_actions_rounded,
+            label: 'due today',
+            value: '$dueCount',
+            color: AppTheme.warning,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: MetricCard(
+            icon: Icons.bookmark_added_rounded,
+            label: 'saved phrases',
+            value: '$savedCount',
+            color: AppTheme.primaryCyan,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: MetricCard(
+            icon: Icons.check_circle_rounded,
+            label: 'mastered',
+            value: '$masteredCount',
+            color: AppTheme.success,
           ),
         ),
       ],
@@ -171,28 +177,100 @@ class _ReviewLine extends StatelessWidget {
   }
 }
 
-class _EmptyReviewState extends StatelessWidget {
-  const _EmptyReviewState();
+class _SavedPhrasesCard extends StatelessWidget {
+  final List<ReviewItem> items;
+
+  const _SavedPhrasesCard({required this.items});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: GlassCard(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.history_edu_rounded,
-              color: AppTheme.primaryCyan,
-              size: 42,
-            ),
-            SizedBox(height: 12),
-            Text(
-              'No saved mistakes yet',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-            ),
-          ],
-        ),
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle(title: 'Saved phrases'),
+          const SizedBox(height: 10),
+          if (items.isEmpty)
+            const Text(
+              'Save useful natural versions from review cards. This stays local in the mock app.',
+              style: TextStyle(color: Colors.white60, height: 1.35),
+            )
+          else
+            for (final item in items.take(4)) ...[
+              _PhraseRow(text: item.correction.naturalText),
+              const SizedBox(height: 8),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WeakSoundsCard extends StatelessWidget {
+  final LanguageProfile? language;
+  final List<ReviewItem> reviews;
+
+  const _WeakSoundsCard({required this.language, required this.reviews});
+
+  @override
+  Widget build(BuildContext context) {
+    final weakSounds = language?.weakSounds ?? const <String>[];
+    final focusAreas = reviews
+        .map((item) => item.correction.focusArea)
+        .toSet()
+        .take(3)
+        .toList();
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle(title: 'Weak sounds'),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final sound in weakSounds.take(3))
+                AppPill(
+                  label: sound,
+                  icon: Icons.hearing_rounded,
+                  color: AppTheme.primaryCyan,
+                  dense: true,
+                ),
+              for (final focus in focusAreas)
+                AppPill(
+                  label: focus,
+                  icon: Icons.psychology_alt_rounded,
+                  color: AppTheme.primaryViolet,
+                  dense: true,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhraseRow extends StatelessWidget {
+  final String text;
+
+  const _PhraseRow({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withAlpha(34),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withAlpha(22)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w800, height: 1.3),
       ),
     );
   }

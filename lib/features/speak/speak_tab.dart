@@ -12,69 +12,119 @@ class SpeakTab extends ConsumerStatefulWidget {
   ConsumerState<SpeakTab> createState() => _SpeakTabState();
 }
 
-class _SpeakTabState extends ConsumerState<SpeakTab>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseController;
-  late final Animation<double> _pulseAnimation;
+class _SpeakTabState extends ConsumerState<SpeakTab> {
+  SpeakMode _selectedMode = SpeakMode.dailyMission;
+  int _fearStep = 0;
+  int _fearConfidence = 38;
 
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1300),
-    )..repeat(reverse: true);
-    _pulseAnimation = CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  void _handleMicPress(SpeakSession session) {
-    final notifier = ref.read(speakSessionProvider.notifier);
-
-    if (session.phase == SpeakSessionPhase.listening) {
-      notifier.finishListening();
-      return;
-    }
-
-    notifier.startListening();
-    Future<void>.delayed(const Duration(milliseconds: 900), () {
-      if (!mounted) {
-        return;
-      }
-
-      final currentSession = ref.read(speakSessionProvider);
-      if (currentSession.phase == SpeakSessionPhase.listening) {
-        ref.read(speakSessionProvider.notifier).finishListening();
+  void _selectMode(SpeakMode mode, DailyMission? mission) {
+    setState(() {
+      _selectedMode = mode;
+      if (mode != SpeakMode.fearBreaker) {
+        _fearStep = 0;
       }
     });
+    ref.read(speakSessionProvider.notifier).changeMode(mode, mission);
   }
 
-  void _saveMistake(SpeakSession session) {
-    final language = ref.read(userProvider).activeLanguage;
-    if (language == null || session.correction == null) {
+  void _handleMic({
+    required SpeakSession session,
+    required DailyMission mission,
+    required LanguageProfile language,
+  }) {
+    final notifier = ref.read(speakSessionProvider.notifier);
+
+    switch (session.phase) {
+      case SpeakSessionPhase.ready:
+        notifier.startListening();
+        return;
+      case SpeakSessionPhase.listening:
+        notifier.finishListening(mission: mission, language: language);
+        return;
+      case SpeakSessionPhase.repeatAttempt:
+        notifier.finishRepeatAttempt();
+        return;
+      case SpeakSessionPhase.transcriptReady:
+      case SpeakSessionPhase.corrected:
+      case SpeakSessionPhase.completed:
+      case SpeakSessionPhase.savedToReview:
+        return;
+    }
+  }
+
+  void _saveCompleted({
+    required SpeakSession session,
+    required DailyMission mission,
+    required LanguageProfile language,
+  }) {
+    if (session.isSavedToReview || session.correction == null) {
       return;
     }
 
     ref
         .read(reviewsProvider.notifier)
         .saveFromSession(session: session, language: language);
+    ref.read(dailyMissionsProvider.notifier).markCompleted(mission.id);
+    ref
+        .read(progressProvider.notifier)
+        .recordCompletedSession(
+          session: session,
+          mission: mission,
+          language: language,
+        );
     ref.read(speakSessionProvider.notifier).markSavedToReview();
-    ref.read(dailyMissionsProvider.notifier).markCompleted(session.missionId);
   }
 
   @override
   Widget build(BuildContext context) {
+    final language = ref.watch(languageProvider);
+    final mission = ref.watch(dailyMissionProvider);
     final session = ref.watch(speakSessionProvider);
-    final phase = session.phase;
-    final isListening = phase == SpeakSessionPhase.listening;
+
+    if (language == null || mission == null) {
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 118),
+          child: EmptyStateCard(
+            icon: Icons.mic_none_rounded,
+            title: 'No mission loaded',
+            body:
+                'Complete onboarding so FluentOS can create a speaking prompt.',
+            action: PrimaryActionButton(
+              label: 'Go to Today',
+              icon: Icons.wb_sunny_outlined,
+              onPressed: () => ref.read(mainTabProvider.notifier).setIndex(0),
+              compact: true,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (session == null) {
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 118),
+          child: EmptyStateCard(
+            icon: Icons.mic_rounded,
+            title: 'Ready to speak',
+            body: 'Load today\'s mission and start the mock speaking loop.',
+            action: PrimaryActionButton(
+              label: 'Load mission',
+              icon: Icons.flag_rounded,
+              onPressed: () {
+                ref
+                    .read(speakSessionProvider.notifier)
+                    .startMission(mission, mode: _selectedMode);
+              },
+              compact: true,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final activeSession = session;
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -82,67 +132,98 @@ class _SpeakTabState extends ConsumerState<SpeakTab>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Speak',
-                        style: Theme.of(context).textTheme.displaySmall
-                            ?.copyWith(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        session.title,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                AppPill(
-                  label: 'Attempt ${session.attemptCount + 1}',
-                  icon: Icons.replay_rounded,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _ScenarioCard(session: session),
-            const SizedBox(height: 34),
-            _MicOrb(
-              isListening: isListening,
-              animation: _pulseAnimation,
-              onTap: () => _handleMicPress(session),
+            FluentHeader(
+              title: 'Speak',
+              subtitle: '${language.name} - ${activeSession.title}',
+              trailing: AppPill(
+                label: _statusTextForPhase(activeSession.phase),
+                icon: Icons.graphic_eq_rounded,
+              ),
             ),
             const SizedBox(height: 18),
+            _ModeSelector(
+              selectedMode: _selectedMode,
+              onSelected: (mode) => _selectMode(mode, mission),
+            ),
+            const SizedBox(height: 18),
+            if (_selectedMode == SpeakMode.fearBreaker) ...[
+              _FearBreakerPanel(
+                step: _fearStep,
+                confidence: _fearConfidence,
+                onTinyStep: () {
+                  setState(() {
+                    _fearStep = (_fearStep + 1).clamp(0, 6);
+                    _fearConfidence = (_fearConfidence + 8).clamp(0, 100);
+                  });
+                },
+                onNervous: () {
+                  setState(() {
+                    _fearConfidence = (_fearConfidence - 4).clamp(0, 100);
+                  });
+                },
+              ),
+              const SizedBox(height: 18),
+            ],
+            _ScenarioCard(session: activeSession, mission: mission),
+            const SizedBox(height: 24),
+            MicOrb(
+              isListening:
+                  activeSession.phase == SpeakSessionPhase.listening ||
+                  activeSession.phase == SpeakSessionPhase.repeatAttempt,
+              onTap: () => _handleMic(
+                session: activeSession,
+                mission: mission,
+                language: language,
+              ),
+              lowPressure: _selectedMode == SpeakMode.fearBreaker,
+              semanticLabel: _micLabel(activeSession.phase),
+            ),
+            const SizedBox(height: 16),
+            WaveformMock(
+              active:
+                  activeSession.phase == SpeakSessionPhase.listening ||
+                  activeSession.phase == SpeakSessionPhase.repeatAttempt,
+            ),
+            const SizedBox(height: 12),
             Text(
-              _statusTextForPhase(phase),
+              _phaseInstruction(activeSession.phase),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white70,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 26),
-            if (session.correction != null)
-              _CorrectionCard(
-                session: session,
-                onSayAgain: () {
-                  ref.read(speakSessionProvider.notifier).sayAgain();
-                },
-                onSave: session.isSavedToReview
-                    ? null
-                    : () {
-                        _saveMistake(session);
-                      },
-              )
-            else
-              _TranscriptPlaceholder(isListening: isListening),
+            const SizedBox(height: 20),
+            _SessionBody(
+              session: activeSession,
+              mission: mission,
+              language: language,
+              onShowCorrection: () {
+                ref
+                    .read(speakSessionProvider.notifier)
+                    .showCorrection(mission: mission, language: language);
+              },
+              onSayAgain: () {
+                ref.read(speakSessionProvider.notifier).startRepeatAttempt();
+              },
+              onFinishRepeat: () {
+                ref.read(speakSessionProvider.notifier).finishRepeatAttempt();
+              },
+              onSave: () => _saveCompleted(
+                session: activeSession,
+                mission: mission,
+                language: language,
+              ),
+              onNextMission: () {
+                final nextMission = ref.read(dailyMissionProvider);
+                if (nextMission != null) {
+                  ref
+                      .read(speakSessionProvider.notifier)
+                      .startMission(nextMission, mode: SpeakMode.dailyMission);
+                  setState(() => _selectedMode = SpeakMode.dailyMission);
+                }
+              },
+            ),
           ],
         ),
       ),
@@ -151,22 +232,108 @@ class _SpeakTabState extends ConsumerState<SpeakTab>
 
   String _statusTextForPhase(SpeakSessionPhase phase) {
     switch (phase) {
-      case SpeakSessionPhase.listening:
-        return 'Listening...';
-      case SpeakSessionPhase.corrected:
-        return 'Correction ready';
-      case SpeakSessionPhase.saved:
-        return 'Saved to Review';
       case SpeakSessionPhase.ready:
         return 'Ready';
+      case SpeakSessionPhase.listening:
+        return 'Listening';
+      case SpeakSessionPhase.transcriptReady:
+        return 'Transcript';
+      case SpeakSessionPhase.corrected:
+        return 'Corrected';
+      case SpeakSessionPhase.repeatAttempt:
+        return 'Repeat';
+      case SpeakSessionPhase.completed:
+        return 'Complete';
+      case SpeakSessionPhase.savedToReview:
+        return 'Saved';
+    }
+  }
+
+  String _micLabel(SpeakSessionPhase phase) {
+    switch (phase) {
+      case SpeakSessionPhase.ready:
+        return 'Start speaking';
+      case SpeakSessionPhase.listening:
+        return 'Finish speaking';
+      case SpeakSessionPhase.repeatAttempt:
+        return 'Finish repeat attempt';
+      case SpeakSessionPhase.transcriptReady:
+      case SpeakSessionPhase.corrected:
+      case SpeakSessionPhase.completed:
+      case SpeakSessionPhase.savedToReview:
+        return 'Microphone inactive';
+    }
+  }
+
+  String _phaseInstruction(SpeakSessionPhase phase) {
+    switch (phase) {
+      case SpeakSessionPhase.ready:
+        return 'Tap the orb to start speaking.';
+      case SpeakSessionPhase.listening:
+        return 'Listening... tap the orb again when you finish.';
+      case SpeakSessionPhase.transcriptReady:
+        return 'Transcript ready. Check what FluentOS heard.';
+      case SpeakSessionPhase.corrected:
+        return 'Correction ready. Repeat the natural version.';
+      case SpeakSessionPhase.repeatAttempt:
+        return 'Say the corrected version again, then tap the orb.';
+      case SpeakSessionPhase.completed:
+        return 'Session complete. Save the mistake to Review.';
+      case SpeakSessionPhase.savedToReview:
+        return 'Saved to Review. Progress has been updated.';
+    }
+  }
+}
+
+class _ModeSelector extends StatelessWidget {
+  final SpeakMode selectedMode;
+  final ValueChanged<SpeakMode> onSelected;
+
+  const _ModeSelector({required this.selectedMode, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(14),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final mode in SpeakMode.values)
+            FluentChip(
+              label: mode.shortLabel,
+              selected: selectedMode == mode,
+              icon: _iconFor(mode),
+              onTap: () => onSelected(mode),
+            ),
+        ],
+      ),
+    );
+  }
+
+  IconData _iconFor(SpeakMode mode) {
+    switch (mode) {
+      case SpeakMode.dailyMission:
+        return Icons.flag_rounded;
+      case SpeakMode.roleplay:
+        return Icons.theater_comedy_rounded;
+      case SpeakMode.shadowing:
+        return Icons.record_voice_over_rounded;
+      case SpeakMode.pronunciationDrill:
+        return Icons.hearing_rounded;
+      case SpeakMode.fearBreaker:
+        return Icons.favorite_outline_rounded;
+      case SpeakMode.freeTalk:
+        return Icons.forum_rounded;
     }
   }
 }
 
 class _ScenarioCard extends StatelessWidget {
   final SpeakSession session;
+  final DailyMission mission;
 
-  const _ScenarioCard({required this.session});
+  const _ScenarioCard({required this.session, required this.mission});
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +341,17 @@ class _ScenarioCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppPill(label: 'Scenario', icon: Icons.theater_comedy_rounded),
+          Row(
+            children: [
+              AppPill(label: session.mode.label, icon: Icons.tune_rounded),
+              const Spacer(),
+              AppPill(
+                label: mission.focusArea,
+                icon: Icons.psychology_alt_rounded,
+                color: AppTheme.warning,
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           Text(
             session.scenarioPrompt,
@@ -190,7 +367,7 @@ class _ScenarioCard extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: Colors.black.withAlpha(48),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.white.withAlpha(22)),
             ),
             child: Row(
@@ -209,7 +386,7 @@ class _ScenarioCard extends StatelessWidget {
                       color: Colors.white,
                       fontSize: 16,
                       height: 1.35,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -222,72 +399,64 @@ class _ScenarioCard extends StatelessWidget {
   }
 }
 
-class _MicOrb extends StatelessWidget {
-  final bool isListening;
-  final Animation<double> animation;
-  final VoidCallback onTap;
+class _SessionBody extends StatelessWidget {
+  final SpeakSession session;
+  final DailyMission mission;
+  final LanguageProfile language;
+  final VoidCallback onShowCorrection;
+  final VoidCallback onSayAgain;
+  final VoidCallback onFinishRepeat;
+  final VoidCallback onSave;
+  final VoidCallback onNextMission;
 
-  const _MicOrb({
-    required this.isListening,
-    required this.animation,
-    required this.onTap,
+  const _SessionBody({
+    required this.session,
+    required this.mission,
+    required this.language,
+    required this.onShowCorrection,
+    required this.onSayAgain,
+    required this.onFinishRepeat,
+    required this.onSave,
+    required this.onNextMission,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Tooltip(
-        message: 'Microphone',
-        child: GestureDetector(
-          onTap: onTap,
-          child: AnimatedBuilder(
-            animation: animation,
-            builder: (context, child) {
-              final pulse = isListening ? 1 + animation.value * 0.12 : 1.0;
-
-              return Transform.scale(
-                scale: pulse,
-                child: Container(
-                  width: 136,
-                  height: 136,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppTheme.primaryCyan,
-                        AppTheme.primaryBlue,
-                        AppTheme.primaryViolet,
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryCyan.withAlpha(
-                          isListening ? 132 : 78,
-                        ),
-                        blurRadius: isListening ? 48 : 30,
-                        spreadRadius: isListening ? 8 : 2,
-                      ),
-                      BoxShadow(
-                        color: AppTheme.deepViolet.withAlpha(88),
-                        blurRadius: 36,
-                        offset: const Offset(0, 18),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    isListening ? Icons.graphic_eq_rounded : Icons.mic_rounded,
-                    color: Colors.white,
-                    size: 54,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
+    switch (session.phase) {
+      case SpeakSessionPhase.ready:
+      case SpeakSessionPhase.listening:
+        return _TranscriptPlaceholder(
+          isListening: session.phase == SpeakSessionPhase.listening,
+        );
+      case SpeakSessionPhase.transcriptReady:
+        return _TranscriptReadyCard(
+          session: session,
+          onShowCorrection: onShowCorrection,
+        );
+      case SpeakSessionPhase.corrected:
+        return CorrectionCard(
+          correction: session.correction!,
+          saved: false,
+          primaryLabel: 'Say it again',
+          secondaryLabel: 'Try again',
+          onPrimary: onSayAgain,
+          onSecondary: onSayAgain,
+        );
+      case SpeakSessionPhase.repeatAttempt:
+        return _RepeatAttemptCard(
+          correction: session.correction,
+          onFinish: onFinishRepeat,
+        );
+      case SpeakSessionPhase.completed:
+        return _CompletionCard(
+          session: session,
+          mission: mission,
+          onSave: onSave,
+          onNextMission: onNextMission,
+        );
+      case SpeakSessionPhase.savedToReview:
+        return _SavedCard(onNextMission: onNextMission);
+    }
   }
 }
 
@@ -310,11 +479,11 @@ class _TranscriptPlaceholder extends StatelessWidget {
           Expanded(
             child: Text(
               isListening
-                  ? 'Capturing speech...'
-                  : 'Your transcript will appear here.',
+                  ? 'Capturing speech in mock mode...'
+                  : 'Your transcript and correction will appear here.',
               style: const TextStyle(
                 color: Colors.white60,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -324,102 +493,205 @@ class _TranscriptPlaceholder extends StatelessWidget {
   }
 }
 
-class _CorrectionCard extends StatelessWidget {
+class _TranscriptReadyCard extends StatelessWidget {
   final SpeakSession session;
-  final VoidCallback onSayAgain;
-  final VoidCallback? onSave;
+  final VoidCallback onShowCorrection;
 
-  const _CorrectionCard({
+  const _TranscriptReadyCard({
     required this.session,
-    required this.onSayAgain,
-    required this.onSave,
+    required this.onShowCorrection,
   });
 
   @override
   Widget build(BuildContext context) {
-    final correction = session.correction!;
-
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const AppPill(
-                label: 'Correction',
-                icon: Icons.auto_fix_high_rounded,
-              ),
-              const Spacer(),
-              Icon(
-                session.isSavedToReview
-                    ? Icons.bookmark_added_rounded
-                    : Icons.bookmark_add_outlined,
-                color: session.isSavedToReview
-                    ? AppTheme.success
-                    : Colors.white54,
-              ),
-            ],
+          const AppPill(label: 'Transcript', icon: Icons.subject_rounded),
+          const SizedBox(height: 16),
+          Text(
+            session.transcriptText ?? '',
+            style: const TextStyle(
+              fontSize: 18,
+              height: 1.35,
+              fontWeight: FontWeight.w800,
+            ),
           ),
+          if (session.transcriptConfidenceLow) ...[
+            const SizedBox(height: 14),
+            GlassCard(
+              padding: const EdgeInsets.all(12),
+              color: AppTheme.warning.withAlpha(20),
+              child: const Text(
+                'I may have misheard you. Try again or continue.',
+                style: TextStyle(
+                  color: Colors.white,
+                  height: 1.3,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
-          _CorrectionLine(
-            label: 'You said',
-            text: correction.originalText,
-            icon: Icons.close_rounded,
-            color: Colors.white54,
-            strikeThrough: true,
+          PrimaryActionButton(
+            label: 'Show correction',
+            icon: Icons.auto_fix_high_rounded,
+            onPressed: onShowCorrection,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RepeatAttemptCard extends StatelessWidget {
+  final Correction? correction;
+  final VoidCallback onFinish;
+
+  const _RepeatAttemptCard({required this.correction, required this.onFinish});
+
+  @override
+  Widget build(BuildContext context) {
+    final natural = correction?.naturalText ?? 'Repeat the corrected answer.';
+
+    return GlassCard(
+      color: AppTheme.primaryBlue.withAlpha(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppPill(label: 'Repeat challenge', icon: Icons.replay_rounded),
+          const SizedBox(height: 16),
+          Text(
+            natural,
+            style: const TextStyle(
+              fontSize: 20,
+              height: 1.3,
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 14),
-          _CorrectionLine(
-            label: 'Say instead',
-            text: correction.correctedText,
+          const Text(
+            'Say it once more. The goal is smoother, not louder.',
+            style: TextStyle(color: Colors.white70, height: 1.35),
+          ),
+          const SizedBox(height: 18),
+          PrimaryActionButton(
+            label: 'Finish repeat',
             icon: Icons.check_rounded,
-            color: AppTheme.primaryCyan,
+            onPressed: onFinish,
           ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryViolet.withAlpha(34),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.primaryViolet.withAlpha(78)),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompletionCard extends StatelessWidget {
+  final SpeakSession session;
+  final DailyMission mission;
+  final VoidCallback onSave;
+  final VoidCallback onNextMission;
+
+  const _CompletionCard({
+    required this.session,
+    required this.mission,
+    required this.onSave,
+    required this.onNextMission,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      color: AppTheme.success.withAlpha(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppPill(
+            label: 'Session complete',
+            icon: Icons.check_circle_rounded,
+            color: AppTheme.success,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            mission.successCue,
+            style: const TextStyle(
+              fontSize: 20,
+              height: 1.25,
+              fontWeight: FontWeight.w900,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.lightbulb_outline_rounded,
-                  color: AppTheme.warning,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    correction.explanation,
-                    style: const TextStyle(color: Colors.white, height: 1.35),
-                  ),
-                ),
-              ],
-            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Save this correction so Review can turn it into repeat practice.',
+            style: TextStyle(color: Colors.white70, height: 1.35),
           ),
           const SizedBox(height: 18),
+          PrimaryActionButton(
+            label: session.isSavedToReview
+                ? 'Saved to Review'
+                : 'Save to Review',
+            icon: session.isSavedToReview
+                ? Icons.bookmark_added_rounded
+                : Icons.bookmark_add_rounded,
+            onPressed: session.isSavedToReview ? null : onSave,
+          ),
+          const SizedBox(height: 12),
+          SecondaryActionButton(
+            label: 'Next mission',
+            icon: Icons.arrow_forward_rounded,
+            onPressed: onNextMission,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SavedCard extends ConsumerWidget {
+  final VoidCallback onNextMission;
+
+  const _SavedCard({required this.onNextMission});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GlassCard(
+      color: AppTheme.success.withAlpha(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppPill(
+            label: 'Saved',
+            icon: Icons.bookmark_added_rounded,
+            color: AppTheme.success,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Review card created. Mission completed. Progress updated.',
+            style: TextStyle(
+              fontSize: 20,
+              height: 1.3,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: SecondaryActionButton(
-                  label: 'Say it again',
-                  icon: Icons.replay_rounded,
-                  onPressed: onSayAgain,
+                  label: 'Go Review',
+                  icon: Icons.history_edu_rounded,
+                  onPressed: () {
+                    ref.read(mainTabProvider.notifier).setIndex(2);
+                  },
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: PrimaryActionButton(
-                  label: session.isSavedToReview ? 'Saved' : 'Save mistake',
-                  icon: session.isSavedToReview
-                      ? Icons.bookmark_added_rounded
-                      : Icons.bookmark_add_rounded,
-                  onPressed: onSave,
+                  label: 'Next',
+                  icon: Icons.arrow_forward_rounded,
+                  onPressed: onNextMission,
                 ),
               ),
             ],
@@ -430,56 +702,106 @@ class _CorrectionCard extends StatelessWidget {
   }
 }
 
-class _CorrectionLine extends StatelessWidget {
-  final String label;
-  final String text;
-  final IconData icon;
-  final Color color;
-  final bool strikeThrough;
+class _FearBreakerPanel extends StatelessWidget {
+  final int step;
+  final int confidence;
+  final VoidCallback onTinyStep;
+  final VoidCallback onNervous;
 
-  const _CorrectionLine({
-    required this.label,
-    required this.text,
-    required this.icon,
-    required this.color,
-    this.strikeThrough = false,
+  const _FearBreakerPanel({
+    required this.step,
+    required this.confidence,
+    required this.onTinyStep,
+    required this.onNervous,
   });
+
+  static const _steps = [
+    'Speak one word',
+    'Speak one sentence',
+    'Speak for 20 seconds',
+    'Speak with AI support',
+    'Speak without script',
+    'Speak faster',
+    'Speak confidently',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final complete = step == _steps.length - 1;
+
+    return GlassCard(
+      color: AppTheme.mint.withAlpha(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppPill(
+            label: 'Fear Breaker',
+            icon: Icons.favorite_outline_rounded,
+            color: AppTheme.mint,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _steps[step],
+            style: const TextStyle(
+              fontSize: 22,
+              height: 1.2,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            complete
+                ? 'You reached the confident step. Keep the pressure low and repeat once.'
+                : 'Tiny steps count. You do not need a perfect sentence to start.',
+            style: const TextStyle(color: Colors.white70, height: 1.35),
+          ),
+          const SizedBox(height: 16),
+          Row(
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    minHeight: 10,
+                    value: confidence / 100,
+                    backgroundColor: Colors.white.withAlpha(24),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppTheme.mint,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(width: 12),
               Text(
-                text,
-                style: TextStyle(
-                  color: strikeThrough ? Colors.white54 : Colors.white,
-                  fontSize: 17,
-                  height: 1.3,
-                  fontWeight: FontWeight.w800,
-                  decoration: strikeThrough ? TextDecoration.lineThrough : null,
-                  decorationColor: Colors.white54,
+                '$confidence%',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: SecondaryActionButton(
+                  label: 'I feel nervous',
+                  icon: Icons.favorite_border_rounded,
+                  onPressed: onNervous,
+                  compact: true,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: PrimaryActionButton(
+                  label: complete ? 'Tiny win' : 'Tiny step',
+                  icon: Icons.arrow_forward_rounded,
+                  onPressed: onTinyStep,
+                  compact: true,
                 ),
               ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

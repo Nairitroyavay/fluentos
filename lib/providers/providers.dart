@@ -2,19 +2,50 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/models.dart';
 import '../repositories/fake_fluentos_repository.dart';
+import '../repositories/fake_mission_engine.dart';
 
 final fakeRepositoryProvider = Provider<FakeFluentOSRepository>((ref) {
   return const FakeFluentOSRepository();
 });
 
-class AuthNotifier extends Notifier<bool> {
-  @override
-  bool build() => false;
+final fakeMissionEngineProvider = Provider<FakeMissionEngine>((ref) {
+  return const FakeMissionEngine();
+});
 
-  void signIn() => state = true;
+class AuthState {
+  final bool isSignedIn;
+  final bool isLoading;
+
+  const AuthState({required this.isSignedIn, required this.isLoading});
+
+  AuthState copyWith({bool? isSignedIn, bool? isLoading}) {
+    return AuthState(
+      isSignedIn: isSignedIn ?? this.isSignedIn,
+      isLoading: isLoading ?? this.isLoading,
+    );
+  }
 }
 
-final authProvider = NotifierProvider<AuthNotifier, bool>(AuthNotifier.new);
+class AuthNotifier extends Notifier<AuthState> {
+  @override
+  AuthState build() => const AuthState(isSignedIn: false, isLoading: false);
+
+  void setLoading(bool isLoading) {
+    state = state.copyWith(isLoading: isLoading);
+  }
+
+  void signIn() {
+    state = const AuthState(isSignedIn: true, isLoading: false);
+  }
+
+  void signOut() {
+    state = const AuthState(isSignedIn: false, isLoading: false);
+  }
+}
+
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
+);
 
 class UserProfileNotifier extends Notifier<UserProfile> {
   @override
@@ -28,8 +59,23 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     );
   }
 
-  void updateSpeakingGoal(String goal) {
-    state = state.copyWith(speakingGoal: goal);
+  void updateEmail(String email) {
+    state = state.copyWith(
+      email: email.trim().isEmpty ? state.email : email.trim(),
+    );
+  }
+
+  void completeOnboarding({
+    required OnboardingProfile profile,
+    required LanguageProfile language,
+  }) {
+    state = state.copyWith(
+      activeLanguage: language,
+      hasCompletedOnboarding: true,
+      speakingGoal: profile.learningGoal,
+      streakDays: 0,
+      totalSpeakMinutes: 0,
+    );
   }
 
   bool selectActiveLanguage(LanguageProfile language) {
@@ -41,16 +87,24 @@ class UserProfileNotifier extends Notifier<UserProfile> {
       return false;
     }
 
-    state = state.copyWith(
-      activeLanguage: language.copyWith(isActive: true),
-      hasCompletedOnboarding: true,
-    );
-
+    state = state.copyWith(activeLanguage: language.copyWith(isActive: true));
     return true;
   }
 
-  void completeOnboarding() {
-    state = state.copyWith(hasCompletedOnboarding: true);
+  void updateProgressTotals({
+    required int totalSpeakMinutes,
+    required int streakDays,
+    LanguageProfile? activeLanguage,
+  }) {
+    state = state.copyWith(
+      totalSpeakMinutes: totalSpeakMinutes,
+      streakDays: streakDays,
+      activeLanguage: activeLanguage,
+    );
+  }
+
+  void resetToFreshUser() {
+    state = ref.read(fakeRepositoryProvider).loadUser();
   }
 }
 
@@ -58,24 +112,61 @@ final userProvider = NotifierProvider<UserProfileNotifier, UserProfile>(
   UserProfileNotifier.new,
 );
 
+class OnboardingNotifier extends Notifier<OnboardingProfile?> {
+  @override
+  OnboardingProfile? build() => null;
+
+  void save(OnboardingProfile profile) {
+    state = profile;
+  }
+
+  void clear() {
+    state = null;
+  }
+}
+
+final onboardingProvider =
+    NotifierProvider<OnboardingNotifier, OnboardingProfile?>(
+      OnboardingNotifier.new,
+    );
+
 final subscriptionProvider = Provider<SubscriptionState>((ref) {
   return ref.watch(userProvider).subscription;
 });
 
-final availableLanguagesProvider = Provider<List<LanguageProfile>>((ref) {
-  final languages = ref.read(fakeRepositoryProvider).loadLanguages();
-  final activeLanguage = ref.watch(userProvider).activeLanguage;
+final languageOptionsProvider = Provider<List<LanguageOption>>((ref) {
+  return ref.read(fakeRepositoryProvider).loadLanguageOptions();
+});
 
-  return [
-    for (final language in languages)
-      language.copyWith(isActive: activeLanguage?.id == language.id),
-  ];
+final baseLanguageOptionsProvider = Provider<List<LanguageOption>>((ref) {
+  return ref
+      .watch(languageOptionsProvider)
+      .where((option) => option.canBeBase)
+      .toList();
+});
+
+final targetLanguageOptionsProvider = Provider<List<LanguageOption>>((ref) {
+  return ref
+      .watch(languageOptionsProvider)
+      .where((option) => option.canBeTarget)
+      .toList();
+});
+
+final languageProvider = Provider<LanguageProfile?>((ref) {
+  return ref.watch(userProvider).activeLanguage;
 });
 
 class DailyMissionsNotifier extends Notifier<List<DailyMission>> {
   @override
-  List<DailyMission> build() {
-    return ref.read(fakeRepositoryProvider).loadDailyMissions();
+  List<DailyMission> build() => const [];
+
+  void createFor({
+    required OnboardingProfile profile,
+    required LanguageProfile language,
+  }) {
+    state = ref
+        .read(fakeRepositoryProvider)
+        .buildMissions(profile: profile, language: language);
   }
 
   void markCompleted(String missionId) {
@@ -84,6 +175,10 @@ class DailyMissionsNotifier extends Notifier<List<DailyMission>> {
         mission.id == missionId ? mission.copyWith(isCompleted: true) : mission,
     ];
   }
+
+  void clear() {
+    state = const [];
+  }
 }
 
 final dailyMissionsProvider =
@@ -91,8 +186,13 @@ final dailyMissionsProvider =
       DailyMissionsNotifier.new,
     );
 
-final dailyMissionProvider = Provider<DailyMission>((ref) {
+final missionProvider = dailyMissionsProvider;
+
+final dailyMissionProvider = Provider<DailyMission?>((ref) {
   final missions = ref.watch(dailyMissionsProvider);
+  if (missions.isEmpty) {
+    return null;
+  }
 
   for (final mission in missions) {
     if (!mission.isCompleted) {
@@ -103,70 +203,148 @@ final dailyMissionProvider = Provider<DailyMission>((ref) {
   return missions.first;
 });
 
-class SpeakSessionNotifier extends Notifier<SpeakSession> {
+class SpeakSessionNotifier extends Notifier<SpeakSession?> {
   @override
-  SpeakSession build() {
-    final mission = ref.watch(dailyMissionProvider);
-    return ref.read(fakeRepositoryProvider).buildSpeakSession(mission);
+  SpeakSession? build() => null;
+
+  void startMission(
+    DailyMission mission, {
+    SpeakMode mode = SpeakMode.dailyMission,
+  }) {
+    state = ref
+        .read(fakeRepositoryProvider)
+        .buildSpeakSession(mission, mode: mode);
   }
 
-  void startMission(DailyMission mission) {
-    state = ref.read(fakeRepositoryProvider).buildSpeakSession(mission);
+  void changeMode(SpeakMode mode, DailyMission? mission) {
+    final selectedMission = mission;
+    if (selectedMission == null) {
+      state = null;
+      return;
+    }
+
+    state = ref
+        .read(fakeRepositoryProvider)
+        .buildSpeakSession(selectedMission, mode: mode);
   }
 
   void startListening() {
-    state = state.copyWith(phase: SpeakSessionPhase.listening);
+    final session = state;
+    if (session == null) {
+      return;
+    }
+
+    state = session.copyWith(phase: SpeakSessionPhase.listening);
   }
 
-  void finishListening() {
-    final correction = ref
+  void finishListening({
+    required DailyMission mission,
+    required LanguageProfile language,
+  }) {
+    final session = state;
+    if (session == null) {
+      return;
+    }
+
+    final transcript = ref
         .read(fakeRepositoryProvider)
-        .fakeCorrectionForMission(state.missionId);
+        .fakeTranscriptForMission(
+          mission: mission,
+          language: language,
+          mode: session.mode,
+        );
     final now = DateTime.now();
     final learnerTurn = SpeakTurn(
-      id: 'learner_${state.missionId}_${state.attemptCount + 1}',
+      id: 'learner_${session.missionId}_${session.attemptCount + 1}',
       speaker: SpeakSpeaker.learner,
-      text: correction.originalText,
+      text: transcript,
       createdAt: now,
-      correction: correction,
     );
 
-    state = state.copyWith(
-      turns: [...state.turns, learnerTurn],
-      correction: correction,
-      phase: SpeakSessionPhase.corrected,
-      attemptCount: state.attemptCount + 1,
+    state = session.copyWith(
+      turns: [...session.turns, learnerTurn],
+      transcriptText: transcript,
+      clearCorrection: true,
+      phase: SpeakSessionPhase.transcriptReady,
+      attemptCount: session.attemptCount + 1,
       isSavedToReview: false,
+      transcriptConfidenceLow:
+          session.mode == SpeakMode.freeTalk ||
+          session.mode == SpeakMode.pronunciationDrill,
     );
   }
 
-  void sayAgain() {
-    state = SpeakSession(
-      id: state.id,
-      missionId: state.missionId,
-      title: state.title,
-      scenarioPrompt: state.scenarioPrompt,
-      coachPrompt: state.coachPrompt,
-      turns: [if (state.turns.isNotEmpty) state.turns.first],
-      correction: null,
-      phase: SpeakSessionPhase.ready,
-      attemptCount: state.attemptCount,
-      isSavedToReview: false,
+  void showCorrection({
+    required DailyMission mission,
+    required LanguageProfile language,
+  }) {
+    final session = state;
+    final transcript = session?.transcriptText;
+    if (session == null || transcript == null) {
+      return;
+    }
+
+    final correction = ref
+        .read(fakeRepositoryProvider)
+        .fakeCorrectionForSession(
+          mission: mission,
+          language: language,
+          mode: session.mode,
+          transcript: transcript,
+        );
+
+    state = session.copyWith(
+      correction: correction,
+      phase: SpeakSessionPhase.corrected,
+    );
+  }
+
+  void startRepeatAttempt() {
+    final session = state;
+    if (session == null) {
+      return;
+    }
+
+    state = session.copyWith(phase: SpeakSessionPhase.repeatAttempt);
+  }
+
+  void finishRepeatAttempt() {
+    final session = state;
+    if (session == null) {
+      return;
+    }
+
+    state = session.copyWith(
+      phase: SpeakSessionPhase.completed,
+      attemptCount: session.attemptCount + 1,
     );
   }
 
   void markSavedToReview() {
-    state = state.copyWith(
-      phase: SpeakSessionPhase.saved,
+    final session = state;
+    if (session == null) {
+      return;
+    }
+
+    state = session.copyWith(
+      phase: SpeakSessionPhase.savedToReview,
       isSavedToReview: true,
     );
+  }
+
+  void clear() {
+    state = null;
   }
 }
 
 final speakSessionProvider =
-    NotifierProvider<SpeakSessionNotifier, SpeakSession>(
+    NotifierProvider<SpeakSessionNotifier, SpeakSession?>(
       SpeakSessionNotifier.new,
     );
+
+final speakSessionPhaseProvider = Provider<SpeakSessionPhase?>((ref) {
+  return ref.watch(speakSessionProvider)?.phase;
+});
 
 class ReviewsNotifier extends Notifier<List<ReviewItem>> {
   @override
@@ -198,6 +376,7 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
       ReviewItem(
         id: 'review_${session.id}_${DateTime.now().millisecondsSinceEpoch}',
         languageCode: language.code,
+        languageName: language.name,
         missionTitle: session.title,
         correction: correction,
         dateAdded: DateTime.now(),
@@ -213,6 +392,32 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
             ? item.copyWith(isMastered: !item.isMastered)
             : item,
     ];
+
+    final mastered = state.where((item) => item.isMastered).length;
+    ref.read(progressProvider.notifier).setMasteredReviewItems(mastered);
+  }
+
+  void toggleSavedPhrase(String reviewId) {
+    state = [
+      for (final item in state)
+        item.id == reviewId
+            ? item.copyWith(isSavedPhrase: !item.isSavedPhrase)
+            : item,
+    ];
+  }
+
+  void markReviewed(String reviewId) {
+    state = [
+      for (final item in state)
+        item.id == reviewId
+            ? item.copyWith(reviewedCount: item.reviewedCount + 1)
+            : item,
+    ];
+    ref.read(progressProvider.notifier).incrementRepeatedCorrections();
+  }
+
+  void clear() {
+    state = const [];
   }
 }
 
@@ -220,8 +425,153 @@ final reviewsProvider = NotifierProvider<ReviewsNotifier, List<ReviewItem>>(
   ReviewsNotifier.new,
 );
 
+final reviewProvider = reviewsProvider;
+
+class ProgressNotifier extends Notifier<ProgressState> {
+  @override
+  ProgressState build() => _emptyProgress();
+
+  void initialize({
+    required OnboardingProfile profile,
+    required LanguageProfile language,
+  }) {
+    state = ref
+        .read(fakeRepositoryProvider)
+        .loadInitialProgress(profile: profile, language: language);
+  }
+
+  void recordCompletedSession({
+    required SpeakSession session,
+    required DailyMission mission,
+    required LanguageProfile language,
+  }) {
+    final correction = session.correction;
+    final minutes = state.speakingMinutes + mission.estimatedMinutes;
+    final completed = state.completedMissions + 1;
+    final saved = correction == null
+        ? state.correctionsSaved
+        : state.correctionsSaved + 1;
+    final repeated = state.repeatedCorrections + 1;
+    final fluency = (state.fluencyScore + 14).clamp(0, 700);
+    final confidence = (state.confidenceScore + 5).clamp(0, 100);
+    final pronunciation = (state.pronunciationScore + 3).clamp(0, 100);
+    final grammar = (state.grammarScore + 3).clamp(0, 100);
+    final readiness = (state.conversationReadiness + 4).clamp(0, 100);
+    final updatedSkills = Map<String, int>.from(state.skillScores)
+      ..update(
+        'Speaking',
+        (value) => (value + 5).clamp(0, 100),
+        ifAbsent: () => confidence,
+      )
+      ..update(
+        'Pronunciation',
+        (value) => (value + 3).clamp(0, 100),
+        ifAbsent: () => pronunciation,
+      )
+      ..update(
+        'Grammar',
+        (value) => (value + 2).clamp(0, 100),
+        ifAbsent: () => grammar,
+      )
+      ..update(
+        'Response speed',
+        (value) => (value + 4).clamp(0, 100),
+        ifAbsent: () => readiness,
+      );
+
+    final today = DateTime.now();
+    final snapshots = [...state.snapshots];
+    final todaySnapshot = FluencySnapshot(
+      date: today,
+      fluencyScore: fluency,
+      confidenceScore: confidence,
+      pronunciationScore: pronunciation,
+      grammarScore: grammar,
+      conversationReadiness: readiness,
+      speakMinutes: minutes,
+      correctionsSaved: saved,
+      completedMissions: completed,
+    );
+
+    if (snapshots.isEmpty) {
+      snapshots.add(todaySnapshot);
+    } else {
+      snapshots[snapshots.length - 1] = todaySnapshot;
+    }
+
+    state = state.copyWith(
+      speakingMinutes: minutes,
+      completedMissions: completed,
+      correctionsSaved: saved,
+      repeatedCorrections: repeated,
+      scenarioCount: completed,
+      streakDays: state.streakDays == 0 ? 1 : state.streakDays,
+      fluencyScore: fluency,
+      confidenceScore: confidence,
+      pronunciationScore: pronunciation,
+      grammarScore: grammar,
+      conversationReadiness: readiness,
+      skillScores: updatedSkills,
+      snapshots: snapshots,
+    );
+
+    ref
+        .read(userProvider.notifier)
+        .updateProgressTotals(
+          totalSpeakMinutes: minutes,
+          streakDays: state.streakDays,
+          activeLanguage: language.copyWith(
+            fluencyScore: fluency,
+            confidenceScore: confidence,
+          ),
+        );
+  }
+
+  void setMasteredReviewItems(int count) {
+    state = state.copyWith(masteredReviewItems: count);
+  }
+
+  void incrementRepeatedCorrections() {
+    state = state.copyWith(repeatedCorrections: state.repeatedCorrections + 1);
+  }
+
+  void clear() {
+    state = _emptyProgress();
+  }
+}
+
+final progressProvider = NotifierProvider<ProgressNotifier, ProgressState>(
+  ProgressNotifier.new,
+);
+
+ProgressState _emptyProgress() {
+  return const ProgressState(
+    speakingMinutes: 0,
+    completedMissions: 0,
+    correctionsSaved: 0,
+    repeatedCorrections: 0,
+    masteredReviewItems: 0,
+    scenarioCount: 0,
+    streakDays: 0,
+    fluencyScore: 0,
+    confidenceScore: 0,
+    pronunciationScore: 0,
+    grammarScore: 0,
+    conversationReadiness: 0,
+    skillScores: {
+      'Speaking': 0,
+      'Listening': 0,
+      'Pronunciation': 0,
+      'Grammar': 0,
+      'Vocabulary': 0,
+      'Response speed': 0,
+    },
+    snapshots: [],
+  );
+}
+
 final fluencySnapshotsProvider = Provider<List<FluencySnapshot>>((ref) {
-  return ref.read(fakeRepositoryProvider).loadFluencySnapshots();
+  return ref.watch(progressProvider).snapshots;
 });
 
 class MainTabNotifier extends Notifier<int> {

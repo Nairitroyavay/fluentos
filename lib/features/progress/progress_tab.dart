@@ -11,10 +11,33 @@ class ProgressTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(userProvider);
-    final snapshots = ref.watch(fluencySnapshotsProvider);
-    final latest = snapshots.last;
+    final language = ref.watch(languageProvider);
+    final progress = ref.watch(progressProvider);
+    final snapshots = progress.snapshots;
+
+    if (language == null || snapshots.isEmpty) {
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 118),
+          child: EmptyStateCard(
+            icon: Icons.insights_rounded,
+            title: 'Progress starts after onboarding',
+            body:
+                'Create your first language plan, complete a speaking mission, and FluentOS will show proof of practice here.',
+            action: PrimaryActionButton(
+              label: 'Go to Today',
+              icon: Icons.wb_sunny_outlined,
+              onPressed: () => ref.read(mainTabProvider.notifier).setIndex(0),
+              compact: true,
+            ),
+          ),
+        ),
+      );
+    }
+
     final first = snapshots.first;
-    final savedMistakes = ref.watch(reviewsProvider).length;
+    final latest = snapshots.last;
+    final weeklyMinutes = latest.speakMinutes;
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -22,101 +45,38 @@ class ProgressTab extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Progress',
-              style: Theme.of(
-                context,
-              ).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              user.activeLanguage?.name ?? 'No active language',
-              style: const TextStyle(color: Colors.white70, fontSize: 16),
+            FluentHeader(
+              title: 'You are becoming a ${language.name} speaker.',
+              subtitle:
+                  '${user.totalSpeakMinutes} minutes spoken - ${progress.completedMissions} missions completed',
+              trailing: AppPill(
+                label: '${progress.streakDays} day streak',
+                icon: Icons.local_fire_department_rounded,
+                color: AppTheme.warning,
+              ),
             ),
             const SizedBox(height: 20),
-            GlassCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const AppPill(
-                        label: 'Fluency snapshot',
-                        icon: Icons.insights_rounded,
-                      ),
-                      const Spacer(),
-                      Text(
-                        '+${latest.score - first.score}',
-                        style: const TextStyle(
-                          color: AppTheme.success,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    '${latest.score}',
-                    style: const TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w900,
-                      height: 0.95,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Fluency score',
-                    style: TextStyle(color: Colors.white60),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    height: 172,
-                    child: CustomPaint(
-                      painter: _FluencyChartPainter(snapshots),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                ],
-              ),
+            _MainScorePanel(
+              progress: progress,
+              delta: latest.fluencyScore - first.fluencyScore,
             ),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _ProgressMetric(
-                    icon: Icons.timer_outlined,
-                    value: '${user.totalSpeakMinutes}',
-                    label: 'minutes spoken',
-                    color: AppTheme.primaryCyan,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ProgressMetric(
-                    icon: Icons.bookmarks_outlined,
-                    value: '$savedMistakes',
-                    label: 'saved mistakes',
-                    color: AppTheme.primaryViolet,
-                  ),
-                ),
-              ],
-            ),
+            _ScoreGrid(progress: progress),
             const SizedBox(height: 18),
-            GlassCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Weekly pattern',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 14),
-                  for (final snapshot in snapshots.reversed.take(3)) ...[
-                    _SnapshotRow(snapshot: snapshot),
-                    const SizedBox(height: 10),
-                  ],
-                ],
-              ),
+            _WeeklyGraph(snapshots: snapshots),
+            const SizedBox(height: 18),
+            _MissionCompletion(progress: progress),
+            const SizedBox(height: 18),
+            _MistakeImprovement(progress: progress),
+            const SizedBox(height: 18),
+            _SkillBreakdown(scores: progress.skillScores),
+            const SizedBox(height: 18),
+            _ConfidenceTimeline(snapshots: snapshots),
+            const SizedBox(height: 18),
+            _WeeklyReport(
+              weeklyMinutes: weeklyMinutes,
+              repeatedCorrections: progress.repeatedCorrections,
+              language: language.name,
             ),
           ],
         ),
@@ -125,39 +85,41 @@ class ProgressTab extends ConsumerWidget {
   }
 }
 
-class _ProgressMetric extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
+class _MainScorePanel extends StatelessWidget {
+  final ProgressState progress;
+  final int delta;
 
-  const _ProgressMetric({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.color,
-  });
+  const _MainScorePanel({required this.progress, required this.delta});
 
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      color: AppTheme.primaryBlue.withAlpha(22),
+      child: Row(
         children: [
-          Icon(icon, color: color),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+          ProgressRing(
+            value: progress.fluencyScore / 700,
+            center: '${progress.fluencyScore}',
+            label: 'Fluency Score',
+            size: 116,
           ),
-          Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white60),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppPill(
+                  label: delta >= 0 ? '+$delta this week' : '$delta this week',
+                  icon: Icons.trending_up_rounded,
+                  color: delta >= 0 ? AppTheme.success : AppTheme.warning,
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Fluency is measured through spoken minutes, corrected sentences, repeat attempts, and completed scenarios.',
+                  style: TextStyle(color: Colors.white70, height: 1.35),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -165,47 +127,376 @@ class _ProgressMetric extends StatelessWidget {
   }
 }
 
-class _SnapshotRow extends StatelessWidget {
-  final FluencySnapshot snapshot;
+class _ScoreGrid extends StatelessWidget {
+  final ProgressState progress;
 
-  const _SnapshotRow({required this.snapshot});
+  const _ScoreGrid({required this.progress});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 46,
-          child: Text(
-            '${snapshot.date.month}/${snapshot.date.day}',
-            style: const TextStyle(color: Colors.white54),
-          ),
-        ),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              minHeight: 8,
-              value: snapshot.score / 600,
-              backgroundColor: Colors.white.withAlpha(22),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                AppTheme.primaryCyan,
+    final metrics = [
+      _MetricSpec(
+        Icons.psychology_alt_rounded,
+        'Speaking Confidence',
+        '${progress.confidenceScore}%',
+        AppTheme.warning,
+      ),
+      _MetricSpec(
+        Icons.hearing_rounded,
+        'Pronunciation',
+        '${progress.pronunciationScore}%',
+        AppTheme.primaryCyan,
+      ),
+      _MetricSpec(
+        Icons.rule_rounded,
+        'Grammar',
+        '${progress.grammarScore}%',
+        AppTheme.mint,
+      ),
+      _MetricSpec(
+        Icons.forum_rounded,
+        'Conversation Readiness',
+        '${progress.conversationReadiness}%',
+        AppTheme.primaryViolet,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 12) / 2;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final metric in metrics)
+              SizedBox(
+                width: itemWidth,
+                child: MetricCard(
+                  icon: metric.icon,
+                  label: metric.label,
+                  value: metric.value,
+                  color: metric.color,
+                ),
               ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _WeeklyGraph extends StatelessWidget {
+  final List<FluencySnapshot> snapshots;
+
+  const _WeeklyGraph({required this.snapshots});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle(title: 'Weekly speaking graph'),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 168,
+            child: CustomPaint(
+              painter: _FluencyChartPainter(snapshots),
+              child: const SizedBox.expand(),
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 38,
-          child: Text(
-            '${snapshot.score}',
-            textAlign: TextAlign.right,
-            style: const TextStyle(fontWeight: FontWeight.w800),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (final snapshot in snapshots)
+                Text(
+                  '${snapshot.date.month}/${snapshot.date.day}',
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+            ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionCompletion extends StatelessWidget {
+  final ProgressState progress;
+
+  const _MissionCompletion({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle(title: 'Mission completion'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _CompactStat(
+                  label: 'completed today',
+                  value: progress.completedMissions > 0 ? '1' : '0',
+                  icon: Icons.today_rounded,
+                ),
+              ),
+              Expanded(
+                child: _CompactStat(
+                  label: 'weekly missions',
+                  value: '${progress.completedMissions}',
+                  icon: Icons.task_alt_rounded,
+                ),
+              ),
+              Expanded(
+                child: _CompactStat(
+                  label: 'scenarios',
+                  value: '${progress.scenarioCount}',
+                  icon: Icons.flag_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MistakeImprovement extends StatelessWidget {
+  final ProgressState progress;
+
+  const _MistakeImprovement({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle(title: 'Mistake improvement'),
+          const SizedBox(height: 12),
+          _ProgressLine(
+            label: 'mistakes fixed',
+            value: progress.correctionsSaved,
+            max: 20,
+            color: AppTheme.primaryCyan,
+          ),
+          _ProgressLine(
+            label: 'repeated corrections',
+            value: progress.repeatedCorrections,
+            max: 20,
+            color: AppTheme.success,
+          ),
+          _ProgressLine(
+            label: 'mastered review items',
+            value: progress.masteredReviewItems,
+            max: 20,
+            color: AppTheme.warning,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkillBreakdown extends StatelessWidget {
+  final Map<String, int> scores;
+
+  const _SkillBreakdown({required this.scores});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle(title: 'Skill breakdown'),
+          const SizedBox(height: 12),
+          for (final entry in scores.entries) ...[
+            _ProgressLine(
+              label: entry.key,
+              value: entry.value,
+              max: 100,
+              color: entry.key == 'Speaking'
+                  ? AppTheme.primaryCyan
+                  : AppTheme.primaryViolet,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ConfidenceTimeline extends StatelessWidget {
+  final List<FluencySnapshot> snapshots;
+
+  const _ConfidenceTimeline({required this.snapshots});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle(title: 'Confidence timeline'),
+          const SizedBox(height: 12),
+          for (final snapshot in snapshots.reversed.take(4)) ...[
+            _ProgressLine(
+              label: '${snapshot.date.month}/${snapshot.date.day}',
+              value: snapshot.confidenceScore,
+              max: 100,
+              color: AppTheme.warning,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyReport extends StatelessWidget {
+  final int weeklyMinutes;
+  final int repeatedCorrections;
+  final String language;
+
+  const _WeeklyReport({
+    required this.weeklyMinutes,
+    required this.repeatedCorrections,
+    required this.language,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      color: AppTheme.success.withAlpha(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppPill(
+            label: 'Weekly report mock',
+            icon: Icons.summarize_rounded,
+            color: AppTheme.success,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            weeklyMinutes == 0
+                ? 'This week you set up your $language speaking identity. Complete your first mission to generate a real report.'
+                : 'This week you spoke $weeklyMinutes minutes and repeated $repeatedCorrections corrected sentences.',
+            style: const TextStyle(
+              fontSize: 18,
+              height: 1.35,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _CompactStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.primaryCyan),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
       ],
     );
   }
+}
+
+class _ProgressLine extends StatelessWidget {
+  final String label;
+  final int value;
+  final int max;
+  final Color color;
+
+  const _ProgressLine({
+    required this.label,
+    required this.value,
+    required this.max,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = max == 0 ? 0.0 : (value / max).clamp(0.0, 1.0);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 112,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 9,
+                value: normalized,
+                backgroundColor: Colors.white.withAlpha(22),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 34,
+            child: Text(
+              '$value',
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricSpec {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _MetricSpec(this.icon, this.label, this.value, this.color);
 }
 
 class _FluencyChartPainter extends CustomPainter {
@@ -229,10 +520,10 @@ class _FluencyChartPainter extends CustomPainter {
     }
 
     final minScore = snapshots
-        .map((snapshot) => snapshot.score)
+        .map((snapshot) => snapshot.fluencyScore)
         .reduce((a, b) => a < b ? a : b);
     final maxScore = snapshots
-        .map((snapshot) => snapshot.score)
+        .map((snapshot) => snapshot.fluencyScore)
         .reduce((a, b) => a > b ? a : b);
     final range = (maxScore - minScore).clamp(1, 1000).toDouble();
     final stepX = snapshots.length == 1
@@ -241,7 +532,7 @@ class _FluencyChartPainter extends CustomPainter {
     final path = Path();
 
     for (var index = 0; index < snapshots.length; index++) {
-      final normalized = (snapshots[index].score - minScore) / range;
+      final normalized = (snapshots[index].fluencyScore - minScore) / range;
       final point = Offset(
         stepX * index,
         size.height - normalized * (size.height - 18) - 9,

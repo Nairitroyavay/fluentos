@@ -1,22 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../providers/providers.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future<void>.delayed(const Duration(milliseconds: 1400), () {
-      if (mounted) {
+    Future<void>.delayed(const Duration(milliseconds: 1200), () {
+      if (!mounted) {
+        return;
+      }
+
+      final auth = ref.read(authProvider);
+      final user = ref.read(userProvider);
+      if (!auth.isSignedIn) {
         context.go('/auth');
+      } else if (!user.hasCompletedOnboarding) {
+        context.go('/onboarding');
+      } else {
+        context.go('/home');
       }
     });
   }
@@ -32,12 +44,17 @@ class _SplashScreenState extends State<SplashScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _SplashMark(),
+                  MicOrb(
+                    isListening: true,
+                    onTap: null,
+                    size: 112,
+                    semanticLabel: 'FluentOS voice mark',
+                  ),
                   SizedBox(height: 28),
                   Text(
                     'FluentOS',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 42, fontWeight: FontWeight.w800),
+                    style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900),
                   ),
                   SizedBox(height: 10),
                   Text(
@@ -55,38 +72,6 @@ class _SplashScreenState extends State<SplashScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SplashMark extends StatelessWidget {
-  const _SplashMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 104,
-      height: 104,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [
-            AppTheme.primaryCyan,
-            AppTheme.primaryBlue,
-            AppTheme.primaryViolet,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryCyan.withAlpha(82),
-            blurRadius: 42,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: const Icon(Icons.mic_rounded, color: Colors.white, size: 46),
     );
   }
 }

@@ -15,7 +15,7 @@ class PremiumPreviewScreen extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
+                constraints: const BoxConstraints(maxWidth: 620),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -27,11 +27,11 @@ class PremiumPreviewScreen extends StatelessWidget {
                         icon: const Icon(Icons.arrow_back_rounded),
                       ),
                     ),
-                    const SizedBox(height: 26),
+                    const SizedBox(height: 20),
                     const _PremiumOrb(),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 26),
                     const Text(
-                      'FluentOS Premium',
+                      'FluentOS Pro Preview',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 36,
@@ -41,7 +41,7 @@ class PremiumPreviewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Multiple active languages are reserved for Premium.',
+                      'Free stays focused on one active language. Pro unlocks depth when you are ready for multiple journeys.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white70,
@@ -49,42 +49,81 @@ class PremiumPreviewScreen extends StatelessWidget {
                         height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 26),
-                    GlassCard(
-                      color: AppTheme.primaryViolet.withAlpha(28),
-                      child: const Column(
-                        children: [
-                          _PremiumFeature(
-                            icon: Icons.language_rounded,
-                            title: 'Multiple target languages',
-                            copy: 'Switch without losing your active tracks.',
-                          ),
-                          SizedBox(height: 16),
-                          _PremiumFeature(
-                            icon: Icons.all_inclusive_rounded,
-                            title: 'Unlimited speaking missions',
-                            copy: 'More scenarios for repeat practice.',
-                          ),
-                          SizedBox(height: 16),
-                          _PremiumFeature(
-                            icon: Icons.auto_fix_high_rounded,
-                            title: 'Deeper corrections',
-                            copy: 'Expanded notes for grammar and tone.',
-                          ),
-                        ],
-                      ),
-                    ),
                     const SizedBox(height: 24),
+                    const _FocusPhilosophyCard(),
+                    const SizedBox(height: 18),
+                    const _PlanCard(
+                      title: 'Free',
+                      price: '₹0',
+                      accent: AppTheme.primaryCyan,
+                      features: [
+                        '1 active language',
+                        'Basic daily missions',
+                        'Limited mock AI speaking',
+                        'Review queue',
+                        'Basic progress',
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    const _PlanCard(
+                      title: 'Pro',
+                      price: '₹149/month',
+                      accent: AppTheme.primaryViolet,
+                      highlighted: true,
+                      features: [
+                        'Multiple active languages',
+                        'Deeper corrections',
+                        'Fear Breaker',
+                        'Advanced roleplay packs',
+                        'Weekly reports',
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    const _PlanCard(
+                      title: 'Pro Plus',
+                      price: '₹299/month',
+                      accent: AppTheme.warning,
+                      features: [
+                        'Advanced fluency tests',
+                        'Interview and work packs',
+                        'Downloadable scenario packs',
+                        'Early access to future safe practice features',
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    const _PlanCard(
+                      title: 'Early supporter',
+                      price: '₹4,999 one-time',
+                      accent: AppTheme.success,
+                      features: [
+                        'Limited-time launch preview',
+                        'Founding supporter badge mock',
+                        'Future Pro access placeholder',
+                      ],
+                    ),
+                    const SizedBox(height: 22),
                     PrimaryActionButton(
-                      label: 'Preview only',
+                      label: 'Preview Pro',
                       icon: Icons.visibility_rounded,
-                      onPressed: () => _close(context),
+                      onPressed: () {},
                     ),
                     const SizedBox(height: 12),
                     SecondaryActionButton(
-                      label: 'Maybe later',
-                      icon: Icons.close_rounded,
+                      label: 'Coming soon',
+                      icon: Icons.lock_clock_rounded,
+                      onPressed: null,
+                    ),
+                    const SizedBox(height: 12),
+                    SecondaryActionButton(
+                      label: 'Continue free',
+                      icon: Icons.arrow_back_rounded,
                       onPressed: () => _close(context),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'No payment SDK is connected in this mock frontend.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white38, fontSize: 12),
                     ),
                   ],
                 ),
@@ -103,6 +142,117 @@ class PremiumPreviewScreen extends StatelessWidget {
     }
 
     context.go('/home');
+  }
+}
+
+class _FocusPhilosophyCard extends StatelessWidget {
+  const _FocusPhilosophyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const GlassCard(
+      color: Color(0x228F5BFF),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppPill(
+            label: 'Focus deeply',
+            icon: Icons.center_focus_strong_rounded,
+            color: AppTheme.primaryCyan,
+          ),
+          SizedBox(height: 14),
+          Text(
+            'Speak one language fluently before you split your focus.',
+            style: TextStyle(
+              fontSize: 20,
+              height: 1.25,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'The free plan is designed around depth, not punishment. Pro is for learners who want multiple active journeys and richer coaching.',
+            style: TextStyle(color: Colors.white70, height: 1.35),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanCard extends StatelessWidget {
+  final String title;
+  final String price;
+  final Color accent;
+  final List<String> features;
+  final bool highlighted;
+
+  const _PlanCard({
+    required this.title,
+    required this.price,
+    required this.accent,
+    required this.features,
+    this.highlighted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      color: highlighted ? accent.withAlpha(30) : Colors.white.withAlpha(14),
+      borderColor: highlighted ? accent.withAlpha(120) : AppTheme.borderGlow,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              AppPill(
+                label: price,
+                icon: Icons.currency_rupee_rounded,
+                color: accent,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (final feature in features) ...[
+            _FeatureRow(text: feature, accent: accent),
+            const SizedBox(height: 9),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureRow extends StatelessWidget {
+  final String text;
+  final Color accent;
+
+  const _FeatureRow({required this.text, required this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.check_circle_rounded, color: accent, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.white70, height: 1.3),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -141,48 +291,6 @@ class _PremiumOrb extends StatelessWidget {
         ),
         child: const Icon(Icons.diamond_rounded, color: Colors.white, size: 52),
       ),
-    );
-  }
-}
-
-class _PremiumFeature extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String copy;
-
-  const _PremiumFeature({
-    required this.icon,
-    required this.title,
-    required this.copy,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: AppTheme.primaryCyan),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                copy,
-                style: const TextStyle(color: Colors.white60, height: 1.35),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

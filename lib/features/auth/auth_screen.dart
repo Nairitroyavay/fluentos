@@ -34,10 +34,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     super.dispose();
   }
 
-  void _continue() {
+  Future<void> _continue() async {
+    ref.read(authProvider.notifier).setLoading(true);
     ref.read(userProvider.notifier).updateName(_nameController.text);
-    ref.read(authProvider.notifier).signIn();
+    ref.read(userProvider.notifier).updateEmail(_emailController.text);
 
+    await Future<void>.delayed(const Duration(milliseconds: 650));
+    if (!mounted) {
+      return;
+    }
+
+    ref.read(authProvider.notifier).signIn();
     final user = ref.read(userProvider);
     context.go(user.hasCompletedOnboarding ? '/home' : '/onboarding');
   }
@@ -45,6 +52,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final isCreate = _mode == _AuthMode.create;
+    final auth = ref.watch(authProvider);
 
     return Scaffold(
       body: LiquidBackground(
@@ -78,9 +86,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             ],
                             selected: {_mode},
                             showSelectedIcon: false,
-                            onSelectionChanged: (selection) {
-                              setState(() => _mode = selection.first);
-                            },
+                            onSelectionChanged: auth.isLoading
+                                ? null
+                                : (selection) {
+                                    setState(() => _mode = selection.first);
+                                  },
                           ),
                           const SizedBox(height: 22),
                           if (isCreate) ...[
@@ -107,7 +117,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           TextField(
                             controller: _passwordController,
                             obscureText: true,
-                            onSubmitted: (_) => _continue(),
+                            onSubmitted: (_) =>
+                                auth.isLoading ? null : _continue(),
                             decoration: const InputDecoration(
                               hintText: 'Password',
                               prefixIcon: Icon(Icons.lock_outline_rounded),
@@ -115,14 +126,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           ),
                           const SizedBox(height: 22),
                           PrimaryActionButton(
-                            label: isCreate ? 'Create account' : 'Continue',
-                            icon: isCreate
+                            label: auth.isLoading
+                                ? 'Creating coach profile...'
+                                : isCreate
+                                ? 'Create account'
+                                : 'Continue',
+                            icon: auth.isLoading
+                                ? Icons.hourglass_top_rounded
+                                : isCreate
                                 ? Icons.person_add_alt_1_rounded
                                 : Icons.arrow_forward_rounded,
-                            onPressed: _continue,
+                            onPressed: auth.isLoading ? null : _continue,
                           ),
                         ],
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    const MockPermissionCard(
+                      title: 'Frontend demo',
+                      body:
+                          'Sign-in is fake and local. No account, voice, or payment data leaves this app.',
                     ),
                   ],
                 ),
@@ -149,13 +172,13 @@ class _AuthHeader extends StatelessWidget {
           'Start with your voice.',
           style: TextStyle(
             fontSize: 34,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
             height: 1.05,
           ),
         ),
         SizedBox(height: 12),
         Text(
-          'One target language. Daily missions. Corrections you can repeat.',
+          'One active language. Daily missions. Corrections you repeat until they feel natural.',
           style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.4),
         ),
       ],
