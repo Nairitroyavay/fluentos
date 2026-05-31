@@ -1,10 +1,36 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/config/app_environment.dart';
+import '../data/contracts/auth_repository.dart';
+import '../data/contracts/language_repository.dart';
+import '../data/contracts/mission_repository.dart';
+import '../data/contracts/progress_repository.dart';
+import '../data/contracts/review_repository.dart';
+import '../data/contracts/settings_repository.dart';
+import '../data/contracts/speak_repository.dart';
+import '../data/contracts/subscription_repository.dart';
+import '../data/contracts/user_repository.dart';
+import '../data/fake/fake_auth_repository.dart';
+import '../data/fake/fake_language_repository.dart';
+import '../data/fake/fake_mission_repository.dart';
+import '../data/fake/fake_progress_repository.dart';
+import '../data/fake/fake_review_repository.dart';
+import '../data/fake/fake_settings_repository.dart';
+import '../data/fake/fake_speak_repository.dart';
+import '../data/fake/fake_subscription_repository.dart';
+import '../data/fake/fake_user_repository.dart';
+import '../data/local/local_persistence_repository.dart';
 import '../models/models.dart';
 import '../repositories/fake_fluentos_repository.dart';
 import '../repositories/fake_mission_engine.dart';
 import '../repositories/mock_persistence_repository.dart';
 import '../services/local_storage_service.dart';
+
+final appEnvironmentProvider = Provider<AppEnvironment>((ref) {
+  return appEnvironment;
+});
 
 final fakeRepositoryProvider = Provider<FakeFluentOSRepository>((ref) {
   return const FakeFluentOSRepository();
@@ -18,6 +44,15 @@ final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
   throw StateError('LocalStorageService must be provided before app startup.');
 });
 
+final localPersistenceRepositoryProvider = Provider<LocalPersistenceRepository>(
+  (ref) {
+    return LocalPersistenceRepository(
+      storage: ref.read(localStorageServiceProvider),
+      defaultUser: ref.read(fakeRepositoryProvider).loadUser(),
+    );
+  },
+);
+
 final mockPersistenceRepositoryProvider = Provider<MockPersistenceRepository>((
   ref,
 ) {
@@ -25,6 +60,101 @@ final mockPersistenceRepositoryProvider = Provider<MockPersistenceRepository>((
     storage: ref.read(localStorageServiceProvider),
     defaults: ref.read(fakeRepositoryProvider),
   );
+});
+
+final fakeAuthRepositoryProvider = Provider<FakeAuthRepository>((ref) {
+  return FakeAuthRepository(
+    local: ref.read(localPersistenceRepositoryProvider),
+  );
+});
+
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return ref.read(fakeAuthRepositoryProvider);
+});
+
+final fakeUserRepositoryProvider = Provider<FakeUserRepository>((ref) {
+  return FakeUserRepository(
+    local: ref.read(localPersistenceRepositoryProvider),
+  );
+});
+
+final userRepositoryProvider = Provider<UserRepository>((ref) {
+  return ref.read(fakeUserRepositoryProvider);
+});
+
+final fakeLanguageRepositoryProvider = Provider<FakeLanguageRepository>((ref) {
+  return FakeLanguageRepository(
+    local: ref.read(localPersistenceRepositoryProvider),
+    defaults: ref.read(fakeRepositoryProvider),
+  );
+});
+
+final languageRepositoryProvider = Provider<LanguageRepository>((ref) {
+  return ref.read(fakeLanguageRepositoryProvider);
+});
+
+final fakeMissionRepositoryProvider = Provider<FakeMissionRepository>((ref) {
+  return FakeMissionRepository(
+    local: ref.read(localPersistenceRepositoryProvider),
+    defaults: ref.read(fakeRepositoryProvider),
+  );
+});
+
+final missionRepositoryContractProvider = Provider<MissionRepository>((ref) {
+  return ref.read(fakeMissionRepositoryProvider);
+});
+
+final fakeSpeakRepositoryProvider = Provider<FakeSpeakRepository>((ref) {
+  return FakeSpeakRepository(
+    local: ref.read(localPersistenceRepositoryProvider),
+    defaults: ref.read(fakeRepositoryProvider),
+  );
+});
+
+final speakRepositoryProvider = Provider<SpeakRepository>((ref) {
+  return ref.read(fakeSpeakRepositoryProvider);
+});
+
+final fakeReviewRepositoryProvider = Provider<FakeReviewRepository>((ref) {
+  return FakeReviewRepository(
+    local: ref.read(localPersistenceRepositoryProvider),
+  );
+});
+
+final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
+  return ref.read(fakeReviewRepositoryProvider);
+});
+
+final fakeProgressRepositoryProvider = Provider<FakeProgressRepository>((ref) {
+  return FakeProgressRepository(
+    local: ref.read(localPersistenceRepositoryProvider),
+  );
+});
+
+final progressRepositoryProvider = Provider<ProgressRepository>((ref) {
+  return ref.read(fakeProgressRepositoryProvider);
+});
+
+final fakeSubscriptionRepositoryProvider = Provider<FakeSubscriptionRepository>(
+  (ref) {
+    return FakeSubscriptionRepository(
+      local: ref.read(localPersistenceRepositoryProvider),
+    );
+  },
+);
+
+final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
+  return ref.read(fakeSubscriptionRepositoryProvider);
+});
+
+final fakeSettingsRepositoryProvider = Provider<FakeSettingsRepository>((ref) {
+  return FakeSettingsRepository(
+    local: ref.read(localPersistenceRepositoryProvider),
+  );
+});
+
+final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
+  return ref.read(fakeSettingsRepositoryProvider);
 });
 
 class AuthState {
@@ -45,7 +175,7 @@ class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {
     return AuthState(
-      isSignedIn: ref.read(mockPersistenceRepositoryProvider).loadSignedIn(),
+      isSignedIn: ref.read(localPersistenceRepositoryProvider).loadSignedIn(),
       isLoading: false,
     );
   }
@@ -56,12 +186,17 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void signIn() {
     state = const AuthState(isSignedIn: true, isLoading: false);
-    ref.read(mockPersistenceRepositoryProvider).saveSignedIn(true);
+    final user = ref.read(userProvider);
+    unawaited(
+      ref
+          .read(authRepositoryProvider)
+          .signInWithEmail(user.email, 'mock_password'),
+    );
   }
 
   void signOut() {
     state = const AuthState(isSignedIn: false, isLoading: false);
-    ref.read(mockPersistenceRepositoryProvider).saveSignedIn(false);
+    unawaited(ref.read(authRepositoryProvider).signOut());
   }
 
   void resetForDemo() {
@@ -76,7 +211,7 @@ final authProvider = NotifierProvider<AuthNotifier, AuthState>(
 class UserProfileNotifier extends Notifier<UserProfile> {
   @override
   UserProfile build() {
-    return ref.read(mockPersistenceRepositoryProvider).loadUser();
+    return ref.read(localPersistenceRepositoryProvider).loadUser();
   }
 
   void updateName(String name) {
@@ -151,7 +286,7 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   }
 
   void _save() {
-    ref.read(mockPersistenceRepositoryProvider).saveUser(state);
+    unawaited(ref.read(userRepositoryProvider).saveUser(state));
   }
 }
 
@@ -162,18 +297,26 @@ final userProvider = NotifierProvider<UserProfileNotifier, UserProfile>(
 class OnboardingNotifier extends Notifier<OnboardingProfile?> {
   @override
   OnboardingProfile? build() {
-    return ref.read(mockPersistenceRepositoryProvider).loadOnboardingProfile();
+    return ref.read(localPersistenceRepositoryProvider).loadOnboardingProfile();
   }
 
   void save(OnboardingProfile profile) {
     state = profile;
-    ref.read(mockPersistenceRepositoryProvider).saveOnboardingProfile(profile);
+    unawaited(
+      ref
+          .read(localPersistenceRepositoryProvider)
+          .saveOnboardingProfile(profile),
+    );
   }
 
   void clear({bool persist = true}) {
     state = null;
     if (persist) {
-      ref.read(mockPersistenceRepositoryProvider).saveOnboardingProfile(null);
+      unawaited(
+        ref
+            .read(localPersistenceRepositoryProvider)
+            .saveOnboardingProfile(null),
+      );
     }
   }
 }
@@ -212,7 +355,7 @@ final languageProvider = Provider<LanguageProfile?>((ref) {
 class DailyMissionsNotifier extends Notifier<List<DailyMission>> {
   @override
   List<DailyMission> build() {
-    return ref.read(mockPersistenceRepositoryProvider).loadDailyMissions();
+    return ref.read(localPersistenceRepositoryProvider).loadDailyMissions();
   }
 
   void createFor({
@@ -228,8 +371,15 @@ class DailyMissionsNotifier extends Notifier<List<DailyMission>> {
   void markCompleted(String missionId) {
     state = [
       for (final mission in state)
-        mission.id == missionId ? mission.copyWith(isCompleted: true) : mission,
+        mission.id == missionId
+            ? mission.copyWith(isCompleted: true, completedAt: DateTime.now())
+            : mission,
     ];
+    unawaited(
+      ref
+          .read(missionRepositoryContractProvider)
+          .markMissionCompleted(ref.read(userProvider).id, missionId),
+    );
     _save();
   }
 
@@ -241,7 +391,11 @@ class DailyMissionsNotifier extends Notifier<List<DailyMission>> {
   }
 
   void _save() {
-    ref.read(mockPersistenceRepositoryProvider).saveDailyMissions(state);
+    unawaited(
+      ref
+          .read(missionRepositoryContractProvider)
+          .saveMissions(ref.read(userProvider).id, state),
+    );
   }
 }
 
@@ -328,6 +482,11 @@ class SpeakSessionNotifier extends Notifier<SpeakSession?> {
     state = session.copyWith(
       turns: [...session.turns, learnerTurn],
       transcriptText: transcript,
+      transcriptConfidence:
+          session.mode == SpeakMode.freeTalk ||
+              session.mode == SpeakMode.pronunciationDrill
+          ? 0.64
+          : 0.91,
       clearCorrection: true,
       phase: SpeakSessionPhase.transcriptReady,
       attemptCount: session.attemptCount + 1,
@@ -413,7 +572,7 @@ final speakSessionPhaseProvider = Provider<SpeakSessionPhase?>((ref) {
 class ReviewsNotifier extends Notifier<List<ReviewItem>> {
   @override
   List<ReviewItem> build() {
-    return ref.read(mockPersistenceRepositoryProvider).loadReviewItems();
+    return ref.read(localPersistenceRepositoryProvider).loadReviewItems();
   }
 
   void saveFromSession({
@@ -439,6 +598,10 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
     state = [
       ReviewItem(
         id: 'review_${session.id}_${DateTime.now().millisecondsSinceEpoch}',
+        userId: session.userId,
+        languageProfileId: language.id,
+        missionId: session.missionId,
+        sessionId: session.id,
         region: language.userRegion,
         baseLanguageCode: language.baseLanguageCode,
         baseLanguageName: language.baseLanguageName,
@@ -449,6 +612,7 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
         missionTitle: session.title,
         correction: correction,
         dateAdded: DateTime.now(),
+        nextReviewAt: DateTime.now().add(const Duration(days: 1)),
       ),
       ...state,
     ];
@@ -497,7 +661,9 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
   }
 
   void _save() {
-    ref.read(mockPersistenceRepositoryProvider).saveReviewItems(state);
+    unawaited(
+      ref.read(localPersistenceRepositoryProvider).saveReviewItems(state),
+    );
   }
 }
 
@@ -510,7 +676,7 @@ final reviewProvider = reviewsProvider;
 class ProgressNotifier extends Notifier<ProgressState> {
   @override
   ProgressState build() {
-    return ref.read(mockPersistenceRepositoryProvider).loadProgress() ??
+    return ref.read(localPersistenceRepositoryProvider).loadProgress() ??
         _emptyProgress();
   }
 
@@ -520,7 +686,8 @@ class ProgressNotifier extends Notifier<ProgressState> {
   }) {
     state = ref
         .read(fakeRepositoryProvider)
-        .loadInitialProgress(profile: profile, language: language);
+        .loadInitialProgress(profile: profile, language: language)
+        .copyWith(userId: language.userId, languageProfileId: language.id);
     _save();
   }
 
@@ -566,6 +733,8 @@ class ProgressNotifier extends Notifier<ProgressState> {
     final today = DateTime.now();
     final snapshots = [...state.snapshots];
     final todaySnapshot = FluencySnapshot(
+      userId: language.userId,
+      languageProfileId: language.id,
       date: today,
       fluencyScore: fluency,
       confidenceScore: confidence,
@@ -630,7 +799,11 @@ class ProgressNotifier extends Notifier<ProgressState> {
   }
 
   void _save() {
-    ref.read(mockPersistenceRepositoryProvider).saveProgress(state);
+    unawaited(
+      ref
+          .read(progressRepositoryProvider)
+          .saveProgress(state.userId, state.languageProfileId, state),
+    );
   }
 }
 
@@ -671,7 +844,7 @@ final fluencySnapshotsProvider = Provider<List<FluencySnapshot>>((ref) {
 class DemoSettingsNotifier extends Notifier<DemoSettings> {
   @override
   DemoSettings build() {
-    return ref.read(mockPersistenceRepositoryProvider).loadSettings();
+    return ref.read(localPersistenceRepositoryProvider).loadSettings();
   }
 
   void setTransliteration(bool value) {
@@ -714,7 +887,9 @@ class DemoSettingsNotifier extends Notifier<DemoSettings> {
   }
 
   void _save() {
-    ref.read(mockPersistenceRepositoryProvider).saveSettings(state);
+    unawaited(
+      ref.read(settingsRepositoryProvider).saveSettings(state.userId, state),
+    );
   }
 }
 

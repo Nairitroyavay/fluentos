@@ -1,3 +1,16 @@
+import 'dart:io';
+
+import 'package:fluentos_app/core/config/backend_mode.dart';
+import 'package:fluentos_app/core/router.dart';
+import 'package:fluentos_app/data/fake/fake_auth_repository.dart';
+import 'package:fluentos_app/data/fake/fake_language_repository.dart';
+import 'package:fluentos_app/data/fake/fake_mission_repository.dart';
+import 'package:fluentos_app/data/fake/fake_progress_repository.dart';
+import 'package:fluentos_app/data/fake/fake_review_repository.dart';
+import 'package:fluentos_app/data/fake/fake_settings_repository.dart';
+import 'package:fluentos_app/data/fake/fake_speak_repository.dart';
+import 'package:fluentos_app/data/fake/fake_subscription_repository.dart';
+import 'package:fluentos_app/data/fake/fake_user_repository.dart';
 import 'package:fluentos_app/main.dart';
 import 'package:fluentos_app/models/models.dart';
 import 'package:fluentos_app/providers/providers.dart';
@@ -7,6 +20,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  test('app starts in mockLocal mode', () async {
+    final container = await createTestContainer();
+    final environment = container.read(appEnvironmentProvider);
+
+    expect(environment.backendMode, BackendMode.mockLocal);
+    expect(environment.isBackendEnabled, isFalse);
+    expect(environment.isAiEnabled, isFalse);
+    expect(environment.isPaymentEnabled, isFalse);
+    expect(environment.isSocialEnabled, isFalse);
+  });
+
   testWidgets('splash opens auth', (tester) async {
     await pumpFluentOS(tester);
 
@@ -31,6 +55,25 @@ void main() {
     expect(find.text('Start my fluency journey'), findsOneWidget);
   });
 
+  test('fake sign-in persists', () async {
+    SharedPreferences.setMockInitialValues({});
+    final localStorage = await LocalStorageService.create();
+    final firstContainer = ProviderContainer(
+      overrides: [localStorageServiceProvider.overrideWithValue(localStorage)],
+    );
+    addTearDown(firstContainer.dispose);
+
+    firstContainer.read(authProvider.notifier).signIn();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    final restartContainer = ProviderContainer(
+      overrides: [localStorageServiceProvider.overrideWithValue(localStorage)],
+    );
+    addTearDown(restartContainer.dispose);
+
+    expect(restartContainer.read(authProvider).isSignedIn, isTrue);
+  });
+
   test('onboarding creates active language and missions', () async {
     final container = await createTestContainer();
     seedOnboardedUser(container);
@@ -44,6 +87,39 @@ void main() {
     expect(missions.first.region, 'India');
     expect(container.read(userProvider).hasCompletedOnboarding, isTrue);
   });
+
+  test(
+    'onboarding and selected region/base/target persist after restart',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final localStorage = await LocalStorageService.create();
+      final firstContainer = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(localStorage),
+        ],
+      );
+      addTearDown(firstContainer.dispose);
+
+      seedOnboardedUser(firstContainer);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final restartContainer = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(localStorage),
+        ],
+      );
+      addTearDown(restartContainer.dispose);
+
+      final onboarding = restartContainer.read(onboardingProvider);
+      final user = restartContainer.read(userProvider);
+
+      expect(onboarding?.userRegion, 'India');
+      expect(onboarding?.baseLanguageCode, 'hi');
+      expect(onboarding?.targetLanguageCode, 'en');
+      expect(user.activeLanguageProfileId, user.activeLanguage?.id);
+      expect(user.hasCompletedOnboarding, isTrue);
+    },
+  );
 
   test('global language options expose support status', () async {
     final container = await createTestContainer();
@@ -65,6 +141,37 @@ void main() {
       options.firstWhere((option) => option.code == 'other').supportStatus,
       LanguageSupportStatus.comingSoon,
     );
+  });
+
+  test('mission generation is region-aware', () async {
+    final container = await createTestContainer();
+    seedOnboardedUser(container);
+
+    final mission = container.read(dailyMissionProvider)!;
+
+    expect(mission.region, 'India');
+    expect(mission.baseLanguageCode, 'hi');
+    expect(mission.targetLanguageCode, 'en');
+    expect(mission.title, contains('assignment extension'));
+  });
+
+  test('speak session creates correction', () async {
+    final container = await createTestContainer();
+    seedOnboardedUser(container);
+
+    final language = container.read(languageProvider)!;
+    final mission = container.read(dailyMissionProvider)!;
+    final speakNotifier = container.read(speakSessionProvider.notifier);
+
+    speakNotifier.startMission(mission);
+    speakNotifier.startListening();
+    speakNotifier.finishListening(mission: mission, language: language);
+    speakNotifier.showCorrection(mission: mission, language: language);
+
+    final session = container.read(speakSessionProvider)!;
+    expect(session.correction, isNotNull);
+    expect(session.correction?.naturalText, isNotEmpty);
+    expect(session.transcriptConfidence, isNotNull);
   });
 
   test('completing speak session creates review item', () async {
@@ -96,6 +203,91 @@ void main() {
     expect(after.streakDays, 1);
   });
 
+  test('free user cannot add second active language', () async {
+    final container = await createTestContainer();
+    seedOnboardedUser(container);
+
+    final secondProfile = testOnboardingProfile().copyWith(
+      targetLanguageCode: 'ja',
+      targetLanguageName: 'Japanese',
+      targetCulture: 'Japan',
+      learningGoal: 'Travel',
+    );
+    final secondLanguage = container
+        .read(fakeLanguageRepositoryProvider)
+        .createLanguageProfile(container.read(userProvider).id, secondProfile);
+
+    final allowed = container
+        .read(userProvider.notifier)
+        .selectActiveLanguage(secondLanguage);
+
+    expect(allowed, isFalse);
+    expect(container.read(languageProvider)?.targetLanguageCode, 'en');
+  });
+
+  test('repository interfaces are bound to fake implementations', () async {
+    final container = await createTestContainer();
+
+    expect(container.read(authRepositoryProvider), isA<FakeAuthRepository>());
+    expect(container.read(userRepositoryProvider), isA<FakeUserRepository>());
+    expect(
+      container.read(languageRepositoryProvider),
+      isA<FakeLanguageRepository>(),
+    );
+    expect(
+      container.read(missionRepositoryContractProvider),
+      isA<FakeMissionRepository>(),
+    );
+    expect(container.read(speakRepositoryProvider), isA<FakeSpeakRepository>());
+    expect(
+      container.read(reviewRepositoryProvider),
+      isA<FakeReviewRepository>(),
+    );
+    expect(
+      container.read(progressRepositoryProvider),
+      isA<FakeProgressRepository>(),
+    );
+    expect(
+      container.read(subscriptionRepositoryProvider),
+      isA<FakeSubscriptionRepository>(),
+    );
+    expect(
+      container.read(settingsRepositoryProvider),
+      isA<FakeSettingsRepository>(),
+    );
+  });
+
+  test('no social map or dating route exists', () {
+    const blocked = ['map', 'social', 'dating', 'nearby', 'chat'];
+
+    for (final route in appRoutePaths) {
+      for (final token in blocked) {
+        expect(route.toLowerCase().contains(token), isFalse);
+      }
+    }
+  });
+
+  test('no backend or payment dependency is added', () {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    const blocked = [
+      'firebase_core',
+      'firebase_auth',
+      'cloud_firestore',
+      'firebase_app_check',
+      'firebase_storage',
+      'cloud_functions',
+      'in_app_purchase',
+      'revenuecat',
+      'openai',
+      'google_maps',
+      'geolocator',
+    ];
+
+    for (final dependency in blocked) {
+      expect(pubspec.toLowerCase().contains(dependency), isFalse);
+    }
+  });
+
   test('local persistence reloads and reset clears demo state', () async {
     SharedPreferences.setMockInitialValues({});
     final localStorage = await LocalStorageService.create();
@@ -118,7 +310,7 @@ void main() {
     expect(restartContainer.read(reviewsProvider), hasLength(1));
     expect(restartContainer.read(progressProvider).completedMissions, 1);
 
-    await restartContainer.read(mockPersistenceRepositoryProvider).clearAll();
+    await restartContainer.read(localPersistenceRepositoryProvider).clearAll();
     final resetContainer = ProviderContainer(
       overrides: [localStorageServiceProvider.overrideWithValue(localStorage)],
     );
@@ -145,6 +337,39 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('FluentOS Pro Preview'), findsOneWidget);
+  });
+
+  testWidgets('coming soon languages do not complete target selection', (
+    tester,
+  ) async {
+    await pumpFluentOS(tester);
+    await openAuth(tester);
+    await tapVisibleText(tester, 'Continue');
+    await pumpAuthDelay(tester);
+
+    await tapVisibleText(tester, 'Start my fluency journey');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tapVisibleText(tester, 'India');
+    await tapVisibleText(tester, 'Continue');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tapVisibleText(tester, 'Hindi');
+    await tapVisibleText(tester, 'Continue');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tapVisibleText(tester, 'Other');
+
+    expect(
+      find.text(
+        'This language is coming later. Choose a supported language for this mock demo.',
+      ),
+      findsOneWidget,
+    );
+
+    await tapVisibleText(tester, 'Continue');
+
+    expect(
+      find.text('Choose a supported or preview target language.'),
+      findsOneWidget,
+    );
   });
 }
 
@@ -207,8 +432,8 @@ Future<ProviderContainer> createTestContainer() async {
 void seedOnboardedUser(ProviderContainer container) {
   final profile = testOnboardingProfile();
   final language = container
-      .read(fakeRepositoryProvider)
-      .createLanguageProfile(profile);
+      .read(fakeLanguageRepositoryProvider)
+      .createLanguageProfile(container.read(userProvider).id, profile);
 
   container.read(authProvider.notifier).signIn();
   container.read(onboardingProvider.notifier).save(profile);

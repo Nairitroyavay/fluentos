@@ -822,6 +822,8 @@ class FakeMissionEngine {
 
     return DailyMission(
       id: id,
+      userId: context.language.userId,
+      languageProfileId: context.language.id,
       region: context.region,
       baseLanguageCode: context.baseCode,
       targetLanguageCode: context.targetCode,
@@ -836,6 +838,7 @@ class FakeMissionEngine {
       difficulty: _difficultyFor(context.profile.currentLevel),
       focusArea: focusArea,
       category: category,
+      scheduledDate: DateTime.now(),
     );
   }
 
@@ -899,6 +902,8 @@ extension on DailyMission {
   DailyMission _withId(String nextId) {
     return DailyMission(
       id: nextId,
+      userId: userId,
+      languageProfileId: languageProfileId,
       region: region,
       baseLanguageCode: baseLanguageCode,
       targetLanguageCode: targetLanguageCode,
@@ -914,6 +919,9 @@ extension on DailyMission {
       focusArea: focusArea,
       category: category,
       isCompleted: isCompleted,
+      scheduledDate: scheduledDate,
+      completedAt: completedAt,
+      createdAt: createdAt,
     );
   }
 }

@@ -231,8 +231,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       voiceBaseline: baseline,
       plan: _generatedPlan,
     );
-    final repository = ref.read(fakeRepositoryProvider);
-    final language = repository.createLanguageProfile(profile);
+    final repository = ref.read(fakeLanguageRepositoryProvider);
+    final language = repository.createLanguageProfile(
+      ref.read(userProvider).id,
+      profile,
+    );
 
     ref.read(onboardingProvider.notifier).save(profile);
     ref
@@ -259,7 +262,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     required List<PlanDay> plan,
   }) {
     final options = ref.read(languageOptionsProvider);
-    final repository = ref.read(fakeRepositoryProvider);
+    final repository = ref.read(fakeLanguageRepositoryProvider);
     final base = options.firstWhere((item) => item.code == _baseLanguageCode);
     final target = options.firstWhere(
       (item) => item.code == _targetLanguageCode,

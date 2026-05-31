@@ -541,7 +541,9 @@ class FakeFluentOSRepository {
 
     return SpeakSession(
       id: 'session_${mission.id}_${mode.name}_${now.millisecondsSinceEpoch}',
+      userId: mission.userId,
       missionId: mission.id,
+      languageProfileId: mission.languageProfileId,
       mode: mode,
       title: title,
       scenarioPrompt: _scenarioForMode(mission, mode),
@@ -555,11 +557,14 @@ class FakeFluentOSRepository {
         ),
       ],
       transcriptText: null,
+      transcriptConfidence: null,
       correction: null,
       phase: SpeakSessionPhase.ready,
       attemptCount: 0,
+      durationSeconds: 0,
       isSavedToReview: false,
       transcriptConfidenceLow: false,
+      createdAt: now,
     );
   }
 

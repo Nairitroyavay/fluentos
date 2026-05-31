@@ -116,7 +116,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
   }
 
   Future<void> _resetDemoData() async {
-    await ref.read(mockPersistenceRepositoryProvider).clearAll();
+    await ref.read(localPersistenceRepositoryProvider).clearAll();
     if (!mounted) {
       return;
     }
@@ -542,7 +542,7 @@ class _PrivacyCard extends StatelessWidget {
           const SectionTitle(title: 'Privacy and voice consent'),
           const SizedBox(height: 10),
           const _InlineNotice(
-            title: 'Voice data not stored in mock mode',
+            title: 'Voice is not stored in this demo.',
             body:
                 'No real microphone, speech-to-text, cloud storage, or model training is used in this frontend MVP.',
           ),
