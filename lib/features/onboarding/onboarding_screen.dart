@@ -18,6 +18,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _step = 0;
+  String? _userRegion;
   String? _baseLanguageCode;
   String? _targetLanguageCode;
   String? _goal;
@@ -30,6 +31,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   _VoiceStepState _voiceState = _VoiceStepState.idle;
   VoiceBaseline? _voiceBaseline;
   List<PlanDay> _generatedPlan = const [];
+
+  static const _regions = [
+    'United States',
+    'India',
+    'Japan',
+    'Germany',
+    'United Kingdom',
+    'Canada',
+    'Australia',
+    'Brazil',
+    'Korea',
+    'France',
+    'Spain',
+    'Mexico',
+    'UAE',
+    'Saudi Arabia',
+    'Singapore',
+    'Other',
+  ];
 
   static const _goals = [
     'College',
@@ -72,7 +92,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       return;
     }
 
-    if (_step == 9) {
+    if (_step == 10) {
       _finishOnboarding();
       return;
     }
@@ -88,7 +108,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       curve: Curves.easeOutCubic,
     );
 
-    if (next == 8 && _generatedPlan.isEmpty) {
+    if (next == 9 && _generatedPlan.isEmpty) {
       await _generatePlan();
     }
   }
@@ -115,23 +135,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 0:
         return true;
       case 1:
-        return _baseLanguageCode != null;
+        return _userRegion != null;
       case 2:
+        return _baseLanguageCode != null;
+      case 3:
         return _targetLanguageCode != null &&
             _targetLanguageCode != _baseLanguageCode;
-      case 3:
-        return _goal != null;
       case 4:
-        return _level != null;
+        return _goal != null;
       case 5:
-        return _confidence != null;
+        return _level != null;
       case 6:
-        return _dailyMinutes != null;
+        return _confidence != null;
       case 7:
-        return _voiceBaseline != null;
+        return _dailyMinutes != null;
       case 8:
-        return _generatedPlan.isNotEmpty && !_isGeneratingPlan;
+        return _voiceBaseline != null;
       case 9:
+        return _generatedPlan.isNotEmpty && !_isGeneratingPlan;
+      case 10:
         return true;
       default:
         return false;
@@ -140,12 +162,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   String _warningText() {
     switch (_step) {
-      case 2:
+      case 3:
         if (_targetLanguageCode == _baseLanguageCode) {
           return 'Base language and target language should be different.';
         }
-        return 'Choose one Phase 1 target language.';
-      case 7:
+        return 'Choose a supported or preview target language.';
+      case 8:
         return 'Run the mock voice baseline before continuing.';
       default:
         return 'Choose an option to continue.';
@@ -237,20 +259,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     required List<PlanDay> plan,
   }) {
     final options = ref.read(languageOptionsProvider);
+    final repository = ref.read(fakeRepositoryProvider);
     final base = options.firstWhere((item) => item.code == _baseLanguageCode);
     final target = options.firstWhere(
       (item) => item.code == _targetLanguageCode,
     );
+    final region = _userRegion ?? 'United States';
 
     return OnboardingProfile(
+      userRegion: region,
       baseLanguageCode: base.code,
       baseLanguageName: base.name,
       targetLanguageCode: target.code,
       targetLanguageName: target.name,
+      targetCulture: repository.targetCultureFor(target, region),
       learningGoal: _goal ?? 'Self-improvement',
       currentLevel: _level ?? 'I know some words',
       speakingConfidence: _confidence ?? 'A little nervous',
       dailyMinutes: _dailyMinutes ?? 10,
+      accentPreference: repository.accentPreferenceFor(target, region),
+      onboardingCompleted: true,
       voiceBaseline: voiceBaseline,
       sevenDayPlan: plan,
     );
@@ -285,6 +313,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
                     _WelcomeStep(onStart: _next),
+                    _RegionStep(
+                      regions: _regions,
+                      selected: _userRegion,
+                      onSelected: (region) {
+                        setState(() {
+                          _userRegion = region;
+                          _showWarning = false;
+                        });
+                      },
+                    ),
                     _BaseLanguageStep(
                       options: baseOptions,
                       selectedCode: _baseLanguageCode,
@@ -368,6 +406,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       isLoading: _isGeneratingPlan,
                       plan: _generatedPlan,
                       targetLanguage: _targetLanguageName(targetOptions),
+                      region: _userRegion ?? 'your region',
+                      baseLanguage: _baseLanguageName(baseOptions),
                     ),
                     _FocusStep(
                       targetLanguage: _targetLanguageName(targetOptions),
@@ -431,15 +471,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return options.firstWhere((item) => item.code == selected).name;
   }
 
+  String _baseLanguageName(List<LanguageOption> options) {
+    final selected = _baseLanguageCode;
+    if (selected == null) {
+      return 'your base language';
+    }
+    return options.firstWhere((item) => item.code == selected).name;
+  }
+
   String _buttonLabel() {
     switch (_step) {
       case 0:
         return 'Start my fluency journey';
-      case 7:
+      case 8:
         return _voiceBaseline == null
             ? 'Continue after voice test'
             : 'Continue';
-      case 9:
+      case 10:
         return 'Enter FluentOS';
       default:
         return 'Continue';
@@ -450,9 +498,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     switch (_step) {
       case 0:
         return Icons.keyboard_voice_rounded;
-      case 7:
+      case 8:
         return Icons.graphic_eq_rounded;
-      case 9:
+      case 10:
         return Icons.arrow_forward_rounded;
       default:
         return Icons.arrow_forward_rounded;
@@ -469,7 +517,7 @@ class _StepProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        for (var index = 0; index < 10; index++) ...[
+        for (var index = 0; index < 11; index++) ...[
           Expanded(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 220),
@@ -482,7 +530,7 @@ class _StepProgress extends StatelessWidget {
               ),
             ),
           ),
-          if (index != 9) const SizedBox(width: 5),
+          if (index != 10) const SizedBox(width: 5),
         ],
       ],
     );
@@ -570,13 +618,19 @@ class _WelcomeStep extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Speak one language fluently at a time.',
+                'Global AI speaking coach',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 18,
                   height: 1.35,
                 ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Learn from the language you think in. Speak one language fluently before you split your focus.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white60, height: 1.35),
               ),
               const SizedBox(height: 24),
               GlassCard(
@@ -643,6 +697,42 @@ class _LoopPreviewItem extends StatelessWidget {
   }
 }
 
+class _RegionStep extends StatelessWidget {
+  final List<String> regions;
+  final String? selected;
+  final ValueChanged<String> onSelected;
+
+  const _RegionStep({
+    required this.regions,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _StepScaffold(
+      title: 'Where are you learning from?',
+      subtitle:
+          'We use this to personalize examples, culture, and speaking situations.',
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final region in regions)
+              FluentChip(
+                label: region,
+                selected: selected == region,
+                icon: Icons.public_rounded,
+                onTap: () => onSelected(region),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _BaseLanguageStep extends StatelessWidget {
   final List<LanguageOption> options;
   final String? selectedCode;
@@ -660,26 +750,39 @@ class _BaseLanguageStep extends StatelessWidget {
       'en',
       'hi',
       'bn',
+      'ja',
+      'de',
+      'es',
+      'fr',
+      'ko',
+      'zh',
+      'ar',
+      'pt',
       'ta',
       'te',
       'mr',
       'kn',
       'ml',
+      'it',
+      'ru',
+      'th',
+      'vi',
+      'ur',
       'gu',
       'pa',
       'or',
       'as',
-      'ur',
-      'more',
+      'other',
     ];
     final baseOptions = [
       for (final code in ordered)
-        options.firstWhere((item) => item.code == code),
+        if (options.any((item) => item.code == code))
+          options.firstWhere((item) => item.code == code),
     ];
 
     return _StepScaffold(
       title: 'What language do you think in?',
-      subtitle: 'FluentOS will explain corrections from your base language.',
+      subtitle: 'Learn from the language you think in.',
       children: [
         Wrap(
           spacing: 10,
@@ -716,41 +819,83 @@ class _TargetLanguageStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final ordered = [
       'en',
-      'hi',
-      'bn',
       'ja',
       'de',
+      'hi',
+      'bn',
+      'es',
+      'fr',
+      'ko',
+      'zh',
+      'ar',
+      'pt',
       'ta',
       'te',
       'mr',
       'kn',
       'ml',
-      'fr',
-      'es',
-      'ko',
+      'it',
+      'ru',
+      'th',
+      'vi',
+      'other',
     ];
     final targets = [
       for (final code in ordered)
-        options.firstWhere((item) => item.code == code),
+        if (options.any((item) => item.code == code))
+          options.firstWhere((item) => item.code == code),
     ];
 
     return _StepScaffold(
       title: 'Which language do you want to speak?',
-      subtitle: 'Phase 1 focuses on a small set we can make feel strong.',
+      subtitle:
+          'Supported languages get full mock missions. Preview languages get simpler global practice.',
       children: [
         for (final option in targets) ...[
-          LanguageCard(
-            flag: option.flag,
-            name: option.name,
-            subtitle: '${option.nativeName} - speaking coach track',
-            selected: selectedCode == option.code,
-            locked: !option.isPhaseOne || option.code == baseCode,
-            onTap: () => onSelected(option.code),
+          Builder(
+            builder: (context) {
+              final isBase = option.code == baseCode;
+              final isComingSoon =
+                  option.supportStatus == LanguageSupportStatus.comingSoon;
+
+              return LanguageCard(
+                flag: option.flag,
+                name: option.name,
+                subtitle:
+                    '${option.nativeName} - ${option.supportStatus.label} speaking track',
+                selected: selectedCode == option.code,
+                locked: isBase || isComingSoon,
+                lockedTapEnabled: isComingSoon,
+                onTap: () {
+                  if (isComingSoon) {
+                    _showComingSoonMessage(context);
+                    return;
+                  }
+                  if (!isBase) {
+                    onSelected(option.code);
+                  }
+                },
+              );
+            },
           ),
           const SizedBox(height: 12),
         ],
       ],
     );
+  }
+
+  void _showComingSoonMessage(BuildContext context) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: const Text(
+            'This language is coming later. Choose a supported language for this mock demo.',
+          ),
+          action: SnackBarAction(label: 'OK', onPressed: () {}),
+        ),
+      );
   }
 }
 
@@ -975,11 +1120,15 @@ class _PlanStep extends StatelessWidget {
   final bool isLoading;
   final List<PlanDay> plan;
   final String targetLanguage;
+  final String region;
+  final String baseLanguage;
 
   const _PlanStep({
     required this.isLoading,
     required this.plan,
     required this.targetLanguage,
+    required this.region,
+    required this.baseLanguage,
   });
 
   @override
@@ -987,7 +1136,7 @@ class _PlanStep extends StatelessWidget {
     return _StepScaffold(
       title: 'Your 7-day $targetLanguage plan',
       subtitle:
-          'A small speaking plan built from your goal and confidence level.',
+          'A speaking plan built from $region, $baseLanguage, your goal, level, confidence, and daily time.',
       children: [
         if (isLoading)
           const GlassCard(
@@ -1055,8 +1204,7 @@ class _FocusStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StepScaffold(
       title: 'Focus deeply. Speak better. Switch less.',
-      subtitle:
-          'Free users focus on one active language. Pro unlocks multiple active languages and deeper coaching.',
+      subtitle: 'Speak one language fluently before you split your focus.',
       children: [
         GlassCard(
           color: AppTheme.primaryViolet.withAlpha(28),
@@ -1072,7 +1220,7 @@ class _FocusStep extends StatelessWidget {
                 icon: Icons.center_focus_strong_rounded,
                 title: 'One active language free',
                 copy:
-                    'Your daily mission, corrections, and review queue stay aligned.',
+                    'Your region, base language, daily mission, corrections, and review queue stay aligned.',
               ),
               const SizedBox(height: 14),
               const _FocusRow(
@@ -1086,7 +1234,7 @@ class _FocusStep extends StatelessWidget {
                 icon: Icons.shield_outlined,
                 title: 'Private speaking engine first',
                 copy:
-                    'This MVP stays focused on solo mission practice and personal review.',
+                    'Global-first. Native-language-aware. Speaking-first. Mock only for now.',
               ),
             ],
           ),

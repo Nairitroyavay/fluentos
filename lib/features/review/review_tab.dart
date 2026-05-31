@@ -25,7 +25,7 @@ class ReviewTab extends ConsumerWidget {
               child: FluentHeader(
                 title: 'Review',
                 subtitle: reviews.isEmpty
-                    ? 'Your personal mistake memory starts after speaking.'
+                    ? 'Your personal correction memory starts after speaking.'
                     : '${due.length} due today - ${mastered.length} mastered',
                 trailing: AppPill(
                   label: language?.name ?? 'No language',
@@ -44,7 +44,7 @@ class ReviewTab extends ConsumerWidget {
                     icon: Icons.history_edu_rounded,
                     title: 'Your review queue is empty',
                     body:
-                        'Complete a speaking session to create your first review card.',
+                        'Complete your first speaking session to create your personal correction memory.',
                   ),
                 ),
               ),
@@ -106,7 +106,7 @@ class _ReviewSection extends ConsumerWidget {
                   : 'Nothing due',
               body: title == 'Mastered'
                   ? 'Repeat a correction and mark it mastered when it feels natural.'
-                  : 'New review cards appear after completed speaking sessions.',
+                  : 'Review sentences you actually spoke. Fix mistakes from your own speaking sessions.',
             )
           else
             for (final item in items) ...[

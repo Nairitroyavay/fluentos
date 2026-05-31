@@ -14,20 +14,13 @@ class ProfileTab extends ConsumerStatefulWidget {
 }
 
 class _ProfileTabState extends ConsumerState<ProfileTab> {
-  bool _transliteration = true;
-  bool _strictCorrections = true;
-  bool _notifications = false;
-  bool _highContrast = false;
-  bool _voiceConsent = false;
-  double _speechSpeed = 0.72;
-  String _coachTone = 'Calm coach';
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(userProvider);
     final language = user.activeLanguage;
     final subscription = ref.watch(subscriptionProvider);
     final onboarding = ref.watch(onboardingProvider);
+    final settings = ref.watch(demoSettingsProvider);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -37,7 +30,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
           children: [
             FluentHeader(
               title: 'Profile',
-              subtitle: 'Local mock settings for your speaking coach.',
+              subtitle: 'Your global speaking-first mock profile.',
               trailing: PremiumBadge(subscription: subscription),
             ),
             const SizedBox(height: 20),
@@ -59,43 +52,55 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
             ),
             const SizedBox(height: 18),
             _LearningPreferencesCard(
-              transliteration: _transliteration,
-              strictCorrections: _strictCorrections,
-              speechSpeed: _speechSpeed,
-              coachTone: _coachTone,
-              notifications: _notifications,
+              transliteration: settings.transliteration,
+              strictCorrections: settings.strictCorrections,
+              speechSpeed: settings.speechSpeed,
+              coachTone: settings.coachTone,
+              notifications: settings.notifications,
+              scriptMode: language?.scriptMode ?? 'Latin script',
+              hasRomanization: language?.hasRomanization ?? false,
+              hasTransliteration: language?.hasTransliteration ?? false,
+              accentPreference:
+                  onboarding?.accentPreference ??
+                  language?.accentPreference ??
+                  'Global clear',
               onTransliterationChanged: (value) {
-                setState(() => _transliteration = value);
+                ref
+                    .read(demoSettingsProvider.notifier)
+                    .setTransliteration(value);
               },
               onStrictnessChanged: (value) {
-                setState(() => _strictCorrections = value);
+                ref
+                    .read(demoSettingsProvider.notifier)
+                    .setStrictCorrections(value);
               },
               onSpeechSpeedChanged: (value) {
-                setState(() => _speechSpeed = value);
+                ref.read(demoSettingsProvider.notifier).setSpeechSpeed(value);
               },
               onCoachToneChanged: (value) {
-                setState(() => _coachTone = value);
+                ref.read(demoSettingsProvider.notifier).setCoachTone(value);
               },
               onNotificationsChanged: (value) {
-                setState(() => _notifications = value);
+                ref.read(demoSettingsProvider.notifier).setNotifications(value);
               },
             ),
             const SizedBox(height: 18),
             _PrivacyCard(
-              voiceConsent: _voiceConsent,
+              voiceConsent: settings.voiceConsent,
               onVoiceConsentChanged: (value) {
-                setState(() => _voiceConsent = value);
+                ref.read(demoSettingsProvider.notifier).setVoiceConsent(value);
               },
             ),
             const SizedBox(height: 18),
             const _OptivusCard(),
             const SizedBox(height: 18),
             _SettingsCard(
-              highContrast: _highContrast,
+              highContrast: settings.highContrast,
               onHighContrastChanged: (value) {
-                setState(() => _highContrast = value);
+                ref.read(demoSettingsProvider.notifier).setHighContrast(value);
               },
               onSignOut: () => _signOut(context),
+              onResetDemoData: _resetDemoData,
             ),
           ],
         ),
@@ -105,11 +110,24 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
 
   void _signOut(BuildContext context) {
     ref.read(authProvider.notifier).signOut();
-    ref.read(userProvider.notifier).resetToFreshUser();
-    ref.read(onboardingProvider.notifier).clear();
-    ref.read(dailyMissionsProvider.notifier).clear();
-    ref.read(reviewsProvider.notifier).clear();
-    ref.read(progressProvider.notifier).clear();
+    ref.read(speakSessionProvider.notifier).clear();
+    ref.read(mainTabProvider.notifier).setIndex(0);
+    context.go('/auth');
+  }
+
+  Future<void> _resetDemoData() async {
+    await ref.read(mockPersistenceRepositoryProvider).clearAll();
+    if (!mounted) {
+      return;
+    }
+
+    ref.read(authProvider.notifier).resetForDemo();
+    ref.read(userProvider.notifier).resetToFreshUser(persist: false);
+    ref.read(onboardingProvider.notifier).clear(persist: false);
+    ref.read(dailyMissionsProvider.notifier).clear(persist: false);
+    ref.read(reviewsProvider.notifier).clear(persist: false);
+    ref.read(progressProvider.notifier).clear(persist: false);
+    ref.read(demoSettingsProvider.notifier).resetForDemo();
     ref.read(speakSessionProvider.notifier).clear();
     ref.read(mainTabProvider.notifier).setIndex(0);
     context.go('/auth');
@@ -220,8 +238,10 @@ class _JourneyCard extends StatelessWidget {
         children: [
           const SectionTitle(title: 'Active language journey'),
           const SizedBox(height: 12),
+          _InfoRow(label: 'Region / country', value: language!.userRegion),
           _InfoRow(label: 'Base language', value: language!.baseLanguageName),
           _InfoRow(label: 'Target language', value: language!.name),
+          _InfoRow(label: 'Target culture', value: language!.targetCulture),
           _InfoRow(label: 'Level', value: language!.level),
           _InfoRow(
             label: 'Goal',
@@ -236,6 +256,10 @@ class _JourneyCard extends StatelessWidget {
             value:
                 onboarding?.speakingConfidence ??
                 '${language!.confidenceScore}%',
+          ),
+          _InfoRow(
+            label: 'Accent',
+            value: onboarding?.accentPreference ?? language!.accentPreference,
           ),
         ],
       ),
@@ -307,7 +331,7 @@ class _ManageLanguagesCard extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           locked
-                              ? 'Free keeps one active language. Preview Pro to unlock multiple journeys.'
+                              ? 'Free learners focus on one active language. Pro unlocks multiple active language journeys.'
                               : 'Create another focused speaking journey.',
                           style: const TextStyle(
                             color: Colors.white60,
@@ -337,6 +361,10 @@ class _LearningPreferencesCard extends StatelessWidget {
   final bool notifications;
   final double speechSpeed;
   final String coachTone;
+  final String scriptMode;
+  final bool hasRomanization;
+  final bool hasTransliteration;
+  final String accentPreference;
   final ValueChanged<bool> onTransliterationChanged;
   final ValueChanged<bool> onStrictnessChanged;
   final ValueChanged<bool> onNotificationsChanged;
@@ -349,6 +377,10 @@ class _LearningPreferencesCard extends StatelessWidget {
     required this.notifications,
     required this.speechSpeed,
     required this.coachTone,
+    required this.scriptMode,
+    required this.hasRomanization,
+    required this.hasTransliteration,
+    required this.accentPreference,
     required this.onTransliterationChanged,
     required this.onStrictnessChanged,
     required this.onNotificationsChanged,
@@ -366,10 +398,18 @@ class _LearningPreferencesCard extends StatelessWidget {
           const SizedBox(height: 8),
           _SwitchRow(
             title: 'Transliteration support',
-            subtitle: 'Show pronunciation help for supported scripts.',
+            subtitle: hasTransliteration
+                ? 'Show pronunciation help for supported scripts.'
+                : 'Unavailable for this script mode.',
             value: transliteration,
-            onChanged: onTransliterationChanged,
+            onChanged: hasTransliteration ? onTransliterationChanged : (_) {},
           ),
+          _InfoRow(label: 'Script mode', value: scriptMode),
+          _InfoRow(
+            label: 'Romanization',
+            value: hasRomanization ? 'Available' : 'Not needed',
+          ),
+          _InfoRow(label: 'Accent preference', value: accentPreference),
           _SwitchRow(
             title: 'Correction strictness',
             subtitle: strictCorrections
@@ -461,7 +501,7 @@ class _LanguageJourneyRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  language.name,
+                  '${language.baseLanguageName} → ${language.name}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -469,7 +509,7 @@ class _LanguageJourneyRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Active from ${language.baseLanguageName} - ${language.focus}',
+                  'Learning from ${language.userRegion} - ${language.goal}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Colors.white60, height: 1.3),
@@ -502,7 +542,7 @@ class _PrivacyCard extends StatelessWidget {
           const SectionTitle(title: 'Privacy and voice consent'),
           const SizedBox(height: 10),
           const _InlineNotice(
-            title: 'Voice data in mock mode',
+            title: 'Voice data not stored in mock mode',
             body:
                 'No real microphone, speech-to-text, cloud storage, or model training is used in this frontend MVP.',
           ),
@@ -625,11 +665,13 @@ class _SettingsCard extends StatelessWidget {
   final bool highContrast;
   final ValueChanged<bool> onHighContrastChanged;
   final VoidCallback onSignOut;
+  final VoidCallback onResetDemoData;
 
   const _SettingsCard({
     required this.highContrast,
     required this.onHighContrastChanged,
     required this.onSignOut,
+    required this.onResetDemoData,
   });
 
   @override
@@ -658,6 +700,12 @@ class _SettingsCard extends StatelessWidget {
             label: 'Sign out',
             icon: Icons.logout_rounded,
             onPressed: onSignOut,
+          ),
+          const SizedBox(height: 12),
+          SecondaryActionButton(
+            label: 'Reset demo data',
+            icon: Icons.restart_alt_rounded,
+            onPressed: onResetDemoData,
           ),
         ],
       ),

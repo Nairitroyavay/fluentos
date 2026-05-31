@@ -2,9 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
+import 'providers/providers.dart';
+import 'services/local_storage_service.dart';
 
-void main() {
-  runApp(const ProviderScope(child: FluentOSApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final localStorage = await LocalStorageService.create();
+
+  runApp(
+    ProviderScope(
+      overrides: [localStorageServiceProvider.overrideWithValue(localStorage)],
+      child: const FluentOSApp(),
+    ),
+  );
 }
 
 class FluentOSApp extends ConsumerWidget {

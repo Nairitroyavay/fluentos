@@ -58,7 +58,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    'Speak one language fluently at a time.',
+                    'Global-first. Native-language-aware. Speaking-first.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white70,

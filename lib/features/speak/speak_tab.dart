@@ -134,7 +134,8 @@ class _SpeakTabState extends ConsumerState<SpeakTab> {
           children: [
             FluentHeader(
               title: 'Speak',
-              subtitle: '${language.name} - ${activeSession.title}',
+              subtitle:
+                  '${language.baseLanguageName} → ${language.name} - ${language.userRegion} - ${activeSession.title}',
               trailing: AppPill(
                 label: _statusTextForPhase(activeSession.phase),
                 icon: Icons.graphic_eq_rounded,
@@ -146,6 +147,10 @@ class _SpeakTabState extends ConsumerState<SpeakTab> {
               onSelected: (mode) => _selectMode(mode, mission),
             ),
             const SizedBox(height: 18),
+            if (_selectedMode == SpeakMode.roleplay) ...[
+              const _GlobalRoleplayExamples(),
+              const SizedBox(height: 18),
+            ],
             if (_selectedMode == SpeakMode.fearBreaker) ...[
               _FearBreakerPanel(
                 step: _fearStep,
@@ -393,6 +398,42 @@ class _ScenarioCard extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlobalRoleplayExamples extends StatelessWidget {
+  const _GlobalRoleplayExamples();
+
+  static const _examples = [
+    'Job interview in English',
+    'Japanese travel introduction',
+    'German train station help',
+    'English global workplace meeting',
+    'Korean culture conversation',
+    'French cafe order',
+    'Spanish travel help',
+    'Hindi local conversation',
+    'Bengali friend conversation',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(14),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final example in _examples)
+            AppPill(
+              label: example,
+              icon: Icons.theater_comedy_rounded,
+              color: AppTheme.primaryCyan,
+              dense: true,
+            ),
         ],
       ),
     );
@@ -719,7 +760,7 @@ class _FearBreakerPanel extends StatelessWidget {
     'Speak one word',
     'Speak one sentence',
     'Speak for 20 seconds',
-    'Speak with AI support',
+    'Speak with guided support',
     'Speak without script',
     'Speak faster',
     'Speak confidently',

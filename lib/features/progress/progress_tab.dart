@@ -21,9 +21,9 @@ class ProgressTab extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 118),
           child: EmptyStateCard(
             icon: Icons.insights_rounded,
-            title: 'Progress starts after onboarding',
+            title: 'Progress starts after speaking',
             body:
-                'Create your first language plan, complete a speaking mission, and FluentOS will show proof of practice here.',
+                'Speak your first mission to start building your fluency identity.',
             action: PrimaryActionButton(
               label: 'Go to Today',
               icon: Icons.wb_sunny_outlined,
@@ -48,7 +48,7 @@ class ProgressTab extends ConsumerWidget {
             FluentHeader(
               title: 'You are becoming a ${language.name} speaker.',
               subtitle:
-                  '${user.totalSpeakMinutes} minutes spoken - ${progress.completedMissions} missions completed',
+                  '${language.baseLanguageName} → ${language.name} - ${language.userRegion} - ${user.totalSpeakMinutes} minutes spoken',
               trailing: AppPill(
                 label: '${progress.streakDays} day streak',
                 icon: Icons.local_fire_department_rounded,
@@ -56,6 +56,8 @@ class ProgressTab extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
+            _JourneyContextCard(language: language, progress: progress),
+            const SizedBox(height: 18),
             _MainScorePanel(
               progress: progress,
               delta: latest.fluencyScore - first.fluencyScore,
@@ -120,6 +122,90 @@ class _MainScorePanel extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyContextCard extends StatelessWidget {
+  final LanguageProfile language;
+  final ProgressState progress;
+
+  const _JourneyContextCard({required this.language, required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle(title: 'Fluency identity'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              AppPill(
+                label: '${language.baseLanguageName} → ${language.name}',
+                icon: Icons.compare_arrows_rounded,
+              ),
+              AppPill(
+                label: language.userRegion,
+                icon: Icons.public_rounded,
+                color: AppTheme.mint,
+              ),
+              AppPill(
+                label: language.goal,
+                icon: Icons.track_changes_rounded,
+                color: AppTheme.warning,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: MetricCard(
+                  icon: Icons.timer_outlined,
+                  label: 'speaking minutes',
+                  value: '${progress.speakingMinutes}',
+                  color: AppTheme.primaryCyan,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: MetricCard(
+                  icon: Icons.forum_rounded,
+                  label: 'conversation readiness',
+                  value: '${progress.conversationReadiness}%',
+                  color: AppTheme.primaryViolet,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: MetricCard(
+                  icon: Icons.task_alt_rounded,
+                  label: 'missions completed',
+                  value: '${progress.completedMissions}',
+                  color: AppTheme.success,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: MetricCard(
+                  icon: Icons.auto_fix_high_rounded,
+                  label: 'mistakes fixed',
+                  value: '${progress.correctionsSaved}',
+                  color: AppTheme.warning,
+                ),
+              ),
+            ],
           ),
         ],
       ),

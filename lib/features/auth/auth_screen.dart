@@ -166,7 +166,10 @@ class _AuthHeader extends StatelessWidget {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppPill(label: 'Speaking first', icon: Icons.graphic_eq_rounded),
+        AppPill(
+          label: 'Global AI speaking coach',
+          icon: Icons.graphic_eq_rounded,
+        ),
         SizedBox(height: 18),
         Text(
           'Start with your voice.',
@@ -178,7 +181,7 @@ class _AuthHeader extends StatelessWidget {
         ),
         SizedBox(height: 12),
         Text(
-          'One active language. Daily missions. Corrections you repeat until they feel natural.',
+          'Your native language, your target language, your speaking journey.',
           style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.4),
         ),
       ],

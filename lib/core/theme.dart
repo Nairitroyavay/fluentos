@@ -780,6 +780,7 @@ class LanguageCard extends StatelessWidget {
   final String subtitle;
   final bool selected;
   final bool locked;
+  final bool lockedTapEnabled;
   final VoidCallback? onTap;
 
   const LanguageCard({
@@ -789,6 +790,7 @@ class LanguageCard extends StatelessWidget {
     required this.subtitle,
     required this.selected,
     this.locked = false,
+    this.lockedTapEnabled = false,
     this.onTap,
   });
 
@@ -796,7 +798,7 @@ class LanguageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: locked ? null : onTap,
+      onTap: locked && !lockedTapEnabled ? null : onTap,
       child: GlassCard(
         color: selected
             ? AppTheme.primaryBlue.withAlpha(44)
@@ -838,7 +840,11 @@ class LanguageCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    locked ? 'Coming later' : subtitle,
+                    locked
+                        ? lockedTapEnabled
+                              ? 'Coming later'
+                              : 'Already your base language'
+                        : subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1028,6 +1034,12 @@ class CorrectionCard extends StatelessWidget {
                 color: AppTheme.mint,
                 dense: true,
               ),
+              AppPill(
+                label: 'Fluency ${correction.fluencyScore}%',
+                icon: Icons.forum_rounded,
+                color: AppTheme.primaryViolet,
+                dense: true,
+              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -1191,7 +1203,8 @@ class ReviewCard extends StatelessWidget {
             children: [
               Expanded(
                 child: AppPill(
-                  label: '${item.languageName} - ${item.missionTitle}',
+                  label:
+                      '${item.baseLanguageName} → ${item.targetLanguageName}',
                   icon: Icons.flag_rounded,
                 ),
               ),
@@ -1201,6 +1214,18 @@ class ReviewCard extends StatelessWidget {
                 style: const TextStyle(color: Colors.white54),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            item.missionTitle,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          AppPill(
+            label: 'Learning from: ${item.region}',
+            icon: Icons.public_rounded,
+            color: AppTheme.mint,
+            dense: true,
           ),
           const SizedBox(height: 16),
           _TextCompareLine(

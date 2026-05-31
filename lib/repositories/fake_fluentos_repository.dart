@@ -12,6 +12,15 @@ class FakeFluentOSRepository {
       subscription: SubscriptionState.free,
       activeLanguage: null,
       hasCompletedOnboarding: false,
+      userRegion: 'United States',
+      baseLanguageCode: 'en',
+      targetLanguageCode: 'ja',
+      targetCulture: 'Global culture',
+      learningGoal: 'Speak with confidence',
+      currentLevel: 'I know some words',
+      speakingConfidence: 'A little nervous',
+      dailyMinutes: 10,
+      accentPreference: 'Global clear',
       speakingGoal: 'Speak with confidence',
       streakDays: 0,
       totalSpeakMinutes: 0,
@@ -24,172 +33,342 @@ class FakeFluentOSRepository {
         code: 'en',
         name: 'English',
         nativeName: 'English',
-        flag: 'EN',
-        isPhaseOne: true,
+        flag: '🌐',
+        supportStatus: LanguageSupportStatus.supported,
         canBeBase: true,
         canBeTarget: true,
+        scriptName: 'Latin script',
+        commonRegions: [
+          'United States',
+          'United Kingdom',
+          'Canada',
+          'Australia',
+          'Singapore',
+          'Global',
+        ],
+        defaultAccentOptions: [
+          'Global clear English',
+          'US English',
+          'UK English',
+          'Indian English',
+        ],
       ),
       LanguageOption(
         code: 'hi',
         name: 'Hindi',
         nativeName: 'हिन्दी',
-        flag: 'HI',
-        isPhaseOne: true,
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.supported,
         canBeBase: true,
         canBeTarget: true,
+        scriptName: 'Devanagari',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Global diaspora'],
+        defaultAccentOptions: ['Standard Hindi', 'Hinglish-aware'],
       ),
       LanguageOption(
         code: 'bn',
         name: 'Bengali',
         nativeName: 'বাংলা',
-        flag: 'BN',
-        isPhaseOne: true,
+        flag: '🇧🇩',
+        supportStatus: LanguageSupportStatus.supported,
         canBeBase: true,
         canBeTarget: true,
-      ),
-      LanguageOption(
-        code: 'ta',
-        name: 'Tamil',
-        nativeName: 'தமிழ்',
-        flag: 'TA',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: true,
-      ),
-      LanguageOption(
-        code: 'te',
-        name: 'Telugu',
-        nativeName: 'తెలుగు',
-        flag: 'TE',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: true,
-      ),
-      LanguageOption(
-        code: 'mr',
-        name: 'Marathi',
-        nativeName: 'मराठी',
-        flag: 'MR',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: true,
-      ),
-      LanguageOption(
-        code: 'kn',
-        name: 'Kannada',
-        nativeName: 'ಕನ್ನಡ',
-        flag: 'KN',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: true,
-      ),
-      LanguageOption(
-        code: 'ml',
-        name: 'Malayalam',
-        nativeName: 'മലയാളം',
-        flag: 'ML',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: true,
-      ),
-      LanguageOption(
-        code: 'gu',
-        name: 'Gujarati',
-        nativeName: 'ગુજરાતી',
-        flag: 'GU',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: false,
-      ),
-      LanguageOption(
-        code: 'pa',
-        name: 'Punjabi',
-        nativeName: 'ਪੰਜਾਬੀ',
-        flag: 'PA',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: false,
-      ),
-      LanguageOption(
-        code: 'or',
-        name: 'Odia',
-        nativeName: 'ଓଡ଼ିଆ',
-        flag: 'OD',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: false,
-      ),
-      LanguageOption(
-        code: 'as',
-        name: 'Assamese',
-        nativeName: 'অসমীয়া',
-        flag: 'AS',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: false,
-      ),
-      LanguageOption(
-        code: 'ur',
-        name: 'Urdu',
-        nativeName: 'اردو',
-        flag: 'UR',
-        isPhaseOne: false,
-        canBeBase: true,
-        canBeTarget: false,
+        scriptName: 'Bangla script',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Bangladesh', 'Global diaspora'],
+        defaultAccentOptions: ['Kolkata Bengali', 'Dhaka Bengali'],
       ),
       LanguageOption(
         code: 'ja',
         name: 'Japanese',
         nativeName: '日本語',
-        flag: 'JA',
-        isPhaseOne: true,
-        canBeBase: false,
+        flag: '🇯🇵',
+        supportStatus: LanguageSupportStatus.supported,
+        canBeBase: true,
         canBeTarget: true,
+        scriptName: 'Kana + Kanji',
+        hasRomanization: true,
+        commonRegions: ['Japan', 'Global culture learners'],
+        defaultAccentOptions: ['Tokyo Japanese', 'Beginner clear Japanese'],
       ),
       LanguageOption(
         code: 'de',
         name: 'German',
         nativeName: 'Deutsch',
-        flag: 'DE',
-        isPhaseOne: true,
-        canBeBase: false,
+        flag: '🇩🇪',
+        supportStatus: LanguageSupportStatus.supported,
+        canBeBase: true,
         canBeTarget: true,
-      ),
-      LanguageOption(
-        code: 'fr',
-        name: 'French',
-        nativeName: 'Francais',
-        flag: 'FR',
-        isPhaseOne: false,
-        canBeBase: false,
-        canBeTarget: true,
+        scriptName: 'Latin script',
+        commonRegions: ['Germany', 'Austria', 'Switzerland', 'Europe'],
+        defaultAccentOptions: ['Standard German', 'Clear business German'],
       ),
       LanguageOption(
         code: 'es',
         name: 'Spanish',
-        nativeName: 'Espanol',
-        flag: 'ES',
-        isPhaseOne: false,
-        canBeBase: false,
+        nativeName: 'Español',
+        flag: '🇪🇸',
+        supportStatus: LanguageSupportStatus.supported,
+        canBeBase: true,
         canBeTarget: true,
+        scriptName: 'Latin script',
+        commonRegions: ['Spain', 'Mexico', 'Latin America', 'United States'],
+        defaultAccentOptions: [
+          'Neutral Spanish',
+          'Mexican Spanish',
+          'Spain Spanish',
+        ],
+      ),
+      LanguageOption(
+        code: 'fr',
+        name: 'French',
+        nativeName: 'Français',
+        flag: '🇫🇷',
+        supportStatus: LanguageSupportStatus.supported,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Latin script',
+        commonRegions: ['France', 'Canada', 'Europe', 'Africa'],
+        defaultAccentOptions: ['France French', 'Canadian French'],
       ),
       LanguageOption(
         code: 'ko',
         name: 'Korean',
         nativeName: '한국어',
-        flag: 'KO',
-        isPhaseOne: false,
-        canBeBase: false,
+        flag: '🇰🇷',
+        supportStatus: LanguageSupportStatus.supported,
+        canBeBase: true,
         canBeTarget: true,
+        scriptName: 'Hangul',
+        hasRomanization: true,
+        commonRegions: ['Korea', 'Global culture learners'],
+        defaultAccentOptions: ['Seoul Korean', 'Beginner clear Korean'],
       ),
       LanguageOption(
-        code: 'more',
-        name: 'More',
-        nativeName: 'More',
-        flag: '+',
-        isPhaseOne: false,
+        code: 'zh',
+        name: 'Mandarin Chinese',
+        nativeName: '中文',
+        flag: '🇨🇳',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Simplified Hanzi',
+        hasRomanization: true,
+        commonRegions: ['China', 'Taiwan', 'Singapore'],
+        defaultAccentOptions: ['Standard Mandarin', 'Pinyin support'],
+      ),
+      LanguageOption(
+        code: 'ar',
+        name: 'Arabic',
+        nativeName: 'العربية',
+        flag: '🇦🇪',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Arabic script',
+        hasTransliteration: true,
+        commonRegions: ['UAE', 'Saudi Arabia', 'Middle East'],
+        defaultAccentOptions: ['Modern Standard Arabic', 'Gulf Arabic preview'],
+      ),
+      LanguageOption(
+        code: 'pt',
+        name: 'Portuguese',
+        nativeName: 'Português',
+        flag: '🇧🇷',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Latin script',
+        commonRegions: ['Brazil', 'Portugal'],
+        defaultAccentOptions: ['Brazilian Portuguese', 'European Portuguese'],
+      ),
+      LanguageOption(
+        code: 'ta',
+        name: 'Tamil',
+        nativeName: 'தமிழ்',
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Tamil script',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Sri Lanka', 'Singapore'],
+        defaultAccentOptions: ['Indian Tamil', 'Singapore Tamil preview'],
+      ),
+      LanguageOption(
+        code: 'te',
+        name: 'Telugu',
+        nativeName: 'తెలుగు',
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Telugu script',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Global diaspora'],
+        defaultAccentOptions: ['Telugu clear speech'],
+      ),
+      LanguageOption(
+        code: 'mr',
+        name: 'Marathi',
+        nativeName: 'मराठी',
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Devanagari',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Global diaspora'],
+        defaultAccentOptions: ['Marathi clear speech'],
+      ),
+      LanguageOption(
+        code: 'kn',
+        name: 'Kannada',
+        nativeName: 'ಕನ್ನಡ',
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Kannada script',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Global diaspora'],
+        defaultAccentOptions: ['Kannada clear speech'],
+      ),
+      LanguageOption(
+        code: 'ml',
+        name: 'Malayalam',
+        nativeName: 'മലയാളം',
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Malayalam script',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Global diaspora'],
+        defaultAccentOptions: ['Malayalam clear speech'],
+      ),
+      LanguageOption(
+        code: 'it',
+        name: 'Italian',
+        nativeName: 'Italiano',
+        flag: '🇮🇹',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Latin script',
+        commonRegions: ['Italy', 'Europe'],
+        defaultAccentOptions: ['Standard Italian'],
+      ),
+      LanguageOption(
+        code: 'ru',
+        name: 'Russian',
+        nativeName: 'Русский',
+        flag: '🇷🇺',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Cyrillic',
+        hasTransliteration: true,
+        commonRegions: ['Russia', 'Eastern Europe'],
+        defaultAccentOptions: ['Standard Russian'],
+      ),
+      LanguageOption(
+        code: 'th',
+        name: 'Thai',
+        nativeName: 'ไทย',
+        flag: '🇹🇭',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Thai script',
+        hasTransliteration: true,
+        commonRegions: ['Thailand', 'Southeast Asia'],
+        defaultAccentOptions: ['Central Thai preview'],
+      ),
+      LanguageOption(
+        code: 'vi',
+        name: 'Vietnamese',
+        nativeName: 'Tiếng Việt',
+        flag: '🇻🇳',
+        supportStatus: LanguageSupportStatus.preview,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Latin script',
+        commonRegions: ['Vietnam', 'Global diaspora'],
+        defaultAccentOptions: ['Northern Vietnamese', 'Southern Vietnamese'],
+      ),
+      LanguageOption(
+        code: 'gu',
+        name: 'Gujarati',
+        nativeName: 'ગુજરાતી',
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.comingSoon,
         canBeBase: true,
         canBeTarget: false,
+        scriptName: 'Gujarati script',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Global diaspora'],
+      ),
+      LanguageOption(
+        code: 'pa',
+        name: 'Punjabi',
+        nativeName: 'ਪੰਜਾਬੀ',
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.comingSoon,
+        canBeBase: true,
+        canBeTarget: false,
+        scriptName: 'Gurmukhi',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Pakistan', 'Global diaspora'],
+      ),
+      LanguageOption(
+        code: 'or',
+        name: 'Odia',
+        nativeName: 'ଓଡ଼ିଆ',
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.comingSoon,
+        canBeBase: true,
+        canBeTarget: false,
+        scriptName: 'Odia script',
+        hasTransliteration: true,
+        commonRegions: ['India'],
+      ),
+      LanguageOption(
+        code: 'as',
+        name: 'Assamese',
+        nativeName: 'অসমীয়া',
+        flag: '🇮🇳',
+        supportStatus: LanguageSupportStatus.comingSoon,
+        canBeBase: true,
+        canBeTarget: false,
+        scriptName: 'Assamese script',
+        hasTransliteration: true,
+        commonRegions: ['India'],
+      ),
+      LanguageOption(
+        code: 'ur',
+        name: 'Urdu',
+        nativeName: 'اردو',
+        flag: '🇵🇰',
+        supportStatus: LanguageSupportStatus.comingSoon,
+        canBeBase: true,
+        canBeTarget: false,
+        scriptName: 'Perso-Arabic script',
+        hasTransliteration: true,
+        commonRegions: ['India', 'Pakistan', 'Middle East'],
+      ),
+      LanguageOption(
+        code: 'other',
+        name: 'Other',
+        nativeName: 'Other',
+        flag: '+',
+        supportStatus: LanguageSupportStatus.comingSoon,
+        canBeBase: true,
+        canBeTarget: true,
+        scriptName: 'Multiple scripts',
+        commonRegions: ['Global'],
+        defaultAccentOptions: ['Global clear'],
       ),
     ];
   }
@@ -207,17 +386,87 @@ class FakeFluentOSRepository {
       name: target.name,
       nativeName: target.nativeName,
       flag: target.flag,
+      supportStatus: target.supportStatus,
       baseLanguageCode: profile.baseLanguageCode,
       baseLanguageName: profile.baseLanguageName,
+      userRegion: profile.userRegion,
+      targetCulture: profile.targetCulture,
       level: _levelLabel(profile.currentLevel),
       focus: _focusFor(profile.learningGoal, target.name),
+      goal: profile.learningGoal,
       fluencyScore: _initialFluency(profile.currentLevel),
       confidenceScore: baseline.confidenceScore,
+      pronunciationScore: baseline.pronunciationScore,
       weakSounds: _weakSoundsFor(target.code, baseline.firstWeakArea),
-      scriptMode: _scriptModeFor(target.code),
-      supportsTransliteration: target.code != 'en' && target.code != 'de',
+      scriptMode: _scriptModeFor(target),
+      scriptName: target.scriptName,
+      hasRomanization: target.hasRomanization,
+      hasTransliteration: target.hasTransliteration,
+      supportsTransliteration:
+          target.hasTransliteration || target.hasRomanization,
+      commonRegions: target.commonRegions,
+      defaultAccentOptions: target.defaultAccentOptions,
+      accentPreference: profile.accentPreference,
       isActive: true,
     );
+  }
+
+  String targetCultureFor(LanguageOption target, String userRegion) {
+    switch (target.code) {
+      case 'en':
+        if (userRegion == 'Japan' ||
+            userRegion == 'Germany' ||
+            userRegion == 'Brazil' ||
+            userRegion == 'India') {
+          return 'Global workplace and travel';
+        }
+        return 'Global English situations';
+      case 'ja':
+        return 'Japan';
+      case 'de':
+        return 'Germany and Europe';
+      case 'hi':
+        return 'India';
+      case 'bn':
+        return 'Bengali-speaking communities';
+      case 'es':
+        return userRegion == 'United States'
+            ? 'Latin America'
+            : 'Spain and Latin America';
+      case 'fr':
+        return 'France and global Francophone culture';
+      case 'ko':
+        return 'Korea';
+      case 'zh':
+        return 'Mandarin-speaking regions';
+      case 'ar':
+        return 'Middle East';
+      case 'pt':
+        return 'Brazil and Portugal';
+      default:
+        return target.commonRegions.isEmpty
+            ? 'Global culture'
+            : target.commonRegions.first;
+    }
+  }
+
+  String accentPreferenceFor(LanguageOption target, String userRegion) {
+    if (target.defaultAccentOptions.isEmpty) {
+      return 'Global clear';
+    }
+    if (target.code == 'en') {
+      switch (userRegion) {
+        case 'India':
+          return 'Indian English';
+        case 'United Kingdom':
+          return 'UK English';
+        case 'United States':
+          return 'US English';
+        default:
+          return 'Global clear English';
+      }
+    }
+    return target.defaultAccentOptions.first;
   }
 
   ProgressState loadInitialProgress({
@@ -332,6 +581,12 @@ class FakeFluentOSRepository {
         return 'Mera naam Roy hai. Main Hindi seekhta hoon kyunki mujhe confident bolna hai.';
       case 'bn':
         return 'Amar naam Roy. Ami Bangla shikte chai karon bondhuder sathe kotha bolte chai.';
+      case 'es':
+        return 'Hola, mi nombre Roy. Quiero hablar Espanol para viajar y conocer personas.';
+      case 'fr':
+        return 'Bonjour, je suis Roy. Je veux parler francais pour voyager et commander cafe.';
+      case 'ko':
+        return 'Annyeonghaseyo, Roy imnida. Hanguk-eo baeugo sipeoyo munhwa joahaeyo.';
       case 'en':
       default:
         if (mission.category == 'College') {
@@ -420,6 +675,60 @@ class FakeFluentOSRepository {
           coachNote:
               'Nice warmth. Repeat once with a clearer pause after your name.',
         );
+      case 'es':
+        return Correction(
+          id: 'correction_${mission.id}_${mode.name}_es',
+          originalText: transcript,
+          correctedText:
+              'Hola, mi nombre es Roy. Quiero hablar espanol para viajar y conocer personas.',
+          naturalText:
+              'Hola, soy Roy. Estoy aprendiendo espanol porque quiero viajar y conocer gente.',
+          explanation:
+              'Add es after mi nombre and use conocer gente for a more natural ending.',
+          focusArea: 'Natural introduction',
+          confidenceScore: 62,
+          pronunciationScore: 60,
+          grammarScore: 59,
+          fluencyScore: 61,
+          coachNote:
+              'Clear message. Repeat with slower vowels and a pause after your name.',
+        );
+      case 'fr':
+        return Correction(
+          id: 'correction_${mission.id}_${mode.name}_fr',
+          originalText: transcript,
+          correctedText:
+              'Bonjour, je suis Roy. Je veux parler francais pour voyager et commander un cafe.',
+          naturalText:
+              'Bonjour, je m appelle Roy. J apprends le francais pour voyager et commander dans un cafe.',
+          explanation:
+              'Use un cafe for the item, and the natural version sounds more like a real introduction.',
+          focusArea: 'French article use',
+          confidenceScore: 60,
+          pronunciationScore: 58,
+          grammarScore: 57,
+          fluencyScore: 59,
+          coachNote:
+              'Good start. Keep the final words soft and do not rush the rhythm.',
+        );
+      case 'ko':
+        return Correction(
+          id: 'correction_${mission.id}_${mode.name}_ko',
+          originalText: transcript,
+          correctedText:
+              'Annyeonghaseyo, Roy imnida. Hanguk-eoreul baeugo sipeoyo. Munhwa-reul joahaeyo.',
+          naturalText:
+              'Annyeonghaseyo, Roy imnida. Hanguk munhwa-reul joahaeseo Hanguk-eoreul baeugo isseoyo.',
+          explanation:
+              'Use Hanguk-eoreul for Korean language and connect culture as the reason.',
+          focusArea: 'Reason sentence',
+          confidenceScore: 61,
+          pronunciationScore: 59,
+          grammarScore: 58,
+          fluencyScore: 60,
+          coachNote:
+              'Nice clear opening. Repeat with a steady pause between the two ideas.',
+        );
       case 'en':
       default:
         return Correction(
@@ -452,7 +761,7 @@ class FakeFluentOSRepository {
   String _scenarioForMode(DailyMission mission, SpeakMode mode) {
     switch (mode) {
       case SpeakMode.roleplay:
-        return '${mission.scenario} The coach will answer like the other person.';
+        return _roleplayScenario(mission);
       case SpeakMode.shadowing:
         return 'Listen to the natural version, then shadow it with the same rhythm.';
       case SpeakMode.pronunciationDrill:
@@ -463,6 +772,31 @@ class FakeFluentOSRepository {
         return 'Speak freely about your day. The coach will correct one useful sentence.';
       case SpeakMode.dailyMission:
         return mission.scenario;
+    }
+  }
+
+  String _roleplayScenario(DailyMission mission) {
+    switch (mission.targetLanguageCode) {
+      case 'en':
+        return mission.category == 'Job interview'
+            ? 'Roleplay: job interview in English. The coach is the interviewer.'
+            : 'Roleplay: English global workplace meeting. The coach is an international colleague.';
+      case 'ja':
+        return 'Roleplay: Japanese travel introduction. The coach is someone you meet in Japan.';
+      case 'de':
+        return 'Roleplay: German train station help. The coach is a station staff member.';
+      case 'ko':
+        return 'Roleplay: Korean culture conversation. The coach is a new acquaintance at a cultural event.';
+      case 'fr':
+        return 'Roleplay: French cafe order. The coach is the person at the counter.';
+      case 'es':
+        return 'Roleplay: Spanish travel help. The coach is a local person helping you.';
+      case 'hi':
+        return 'Roleplay: Hindi local conversation. The coach is a friendly local speaker.';
+      case 'bn':
+        return 'Roleplay: Bengali friend conversation. The coach is a new friend.';
+      default:
+        return '${mission.scenario} The coach will answer like the other person.';
     }
   }
 
@@ -558,24 +892,34 @@ class FakeFluentOSRepository {
         return ['retroflex sounds', 'aspiration', baselineWeakArea];
       case 'bn':
         return ['soft b/v', 'sentence rhythm', baselineWeakArea];
+      case 'es':
+        return ['rolled r', 'vowel clarity', baselineWeakArea];
+      case 'fr':
+        return ['nasal vowels', 'liaison rhythm', baselineWeakArea];
+      case 'ko':
+        return ['batchim endings', 'sentence rhythm', baselineWeakArea];
+      case 'zh':
+        return ['tones', 'initial consonants', baselineWeakArea];
+      case 'ar':
+        return ['emphatic sounds', 'throat sounds', baselineWeakArea];
+      case 'pt':
+        return ['nasal vowels', 'word stress', baselineWeakArea];
       case 'en':
       default:
         return ['word endings', 'v/w clarity', baselineWeakArea];
     }
   }
 
-  String _scriptModeFor(String code) {
-    switch (code) {
-      case 'ja':
-        return 'Kana + romaji support';
-      case 'hi':
-        return 'Devanagari + transliteration';
-      case 'bn':
-        return 'Bangla script + transliteration';
-      case 'de':
-      case 'en':
-      default:
-        return 'Latin script';
+  String _scriptModeFor(LanguageOption target) {
+    if (target.hasRomanization && target.hasTransliteration) {
+      return '${target.scriptName} + romanization + transliteration';
     }
+    if (target.hasRomanization) {
+      return '${target.scriptName} + romanization';
+    }
+    if (target.hasTransliteration) {
+      return '${target.scriptName} + transliteration';
+    }
+    return target.scriptName;
   }
 }

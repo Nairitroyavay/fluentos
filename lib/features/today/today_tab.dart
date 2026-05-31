@@ -14,8 +14,6 @@ class TodayTab extends ConsumerStatefulWidget {
 }
 
 class _TodayTabState extends ConsumerState<TodayTab> {
-  bool _showTransliteration = true;
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(userProvider);
@@ -25,6 +23,7 @@ class _TodayTabState extends ConsumerState<TodayTab> {
     final reviews = ref.watch(reviewsProvider);
     final progress = ref.watch(progressProvider);
     final onboarding = ref.watch(onboardingProvider);
+    final settings = ref.watch(demoSettingsProvider);
 
     if (language == null || mission == null) {
       return SafeArea(
@@ -59,11 +58,13 @@ class _TodayTabState extends ConsumerState<TodayTab> {
             FluentHeader(
               title: 'Good to see you, ${user.name}',
               subtitle:
-                  '${language.name} from ${language.baseLanguageName} - ${user.streakDays} day streak',
+                  'Learning from: ${language.userRegion} - Active target: ${language.name} - ${user.streakDays} day streak',
               trailing: PremiumBadge(subscription: user.subscription),
             ),
             const SizedBox(height: 20),
             _ActiveLanguageSummary(language: language, onboarding: onboarding),
+            const SizedBox(height: 18),
+            _TodayMissionContext(language: language, mission: mission),
             const SizedBox(height: 18),
             MissionCard(
               mission: mission,
@@ -93,9 +94,11 @@ class _TodayTabState extends ConsumerState<TodayTab> {
             _PhrasePackPreview(
               mission: mission,
               language: language,
-              showTransliteration: _showTransliteration,
+              showTransliteration: settings.transliteration,
               onToggle: () {
-                setState(() => _showTransliteration = !_showTransliteration);
+                ref
+                    .read(demoSettingsProvider.notifier)
+                    .setTransliteration(!settings.transliteration);
               },
               onPractice: () {
                 ref
@@ -151,7 +154,7 @@ class _ActiveLanguageSummary extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      language.name,
+                      '${language.baseLanguageName} → ${language.name}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -161,7 +164,7 @@ class _ActiveLanguageSummary extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'From ${language.baseLanguageName} - ${language.level}',
+                      'Learning from: ${language.userRegion} - ${language.targetCulture}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.white60),
@@ -183,9 +186,14 @@ class _ActiveLanguageSummary extends StatelessWidget {
             runSpacing: 8,
             children: [
               AppPill(
-                label: language.focus,
+                label: language.goal,
                 icon: Icons.track_changes_rounded,
                 color: AppTheme.success,
+              ),
+              AppPill(
+                label: language.level,
+                icon: Icons.school_outlined,
+                color: AppTheme.primaryCyan,
               ),
               AppPill(
                 label: 'Confidence ${language.confidenceScore}%',
@@ -193,11 +201,70 @@ class _ActiveLanguageSummary extends StatelessWidget {
                 color: AppTheme.warning,
               ),
               AppPill(
+                label: 'Pronunciation ${language.pronunciationScore}%',
+                icon: Icons.hearing_rounded,
+                color: AppTheme.mint,
+              ),
+              AppPill(
                 label: '${onboarding?.dailyMinutes ?? 10} min/day',
                 icon: Icons.timer_outlined,
                 color: AppTheme.primaryCyan,
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayMissionContext extends StatelessWidget {
+  final LanguageProfile language;
+  final DailyMission mission;
+
+  const _TodayMissionContext({required this.language, required this.mission});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      color: AppTheme.primaryBlue.withAlpha(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              AppPill(
+                label: '${language.baseLanguageName} → ${language.name}',
+                icon: Icons.compare_arrows_rounded,
+              ),
+              AppPill(
+                label: 'Learning from: ${language.userRegion}',
+                icon: Icons.public_rounded,
+                color: AppTheme.mint,
+              ),
+              AppPill(
+                label: 'Goal: ${language.goal}',
+                icon: Icons.track_changes_rounded,
+                color: AppTheme.warning,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Today: ${mission.title}',
+            style: const TextStyle(
+              fontSize: 18,
+              height: 1.25,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Built for your region, base language, and speaking goal.',
+            style: TextStyle(color: Colors.white70, height: 1.35),
           ),
         ],
       ),

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/models.dart';
 import '../repositories/fake_fluentos_repository.dart';
 import '../repositories/fake_mission_engine.dart';
+import '../repositories/mock_persistence_repository.dart';
+import '../services/local_storage_service.dart';
 
 final fakeRepositoryProvider = Provider<FakeFluentOSRepository>((ref) {
   return const FakeFluentOSRepository();
@@ -10,6 +12,19 @@ final fakeRepositoryProvider = Provider<FakeFluentOSRepository>((ref) {
 
 final fakeMissionEngineProvider = Provider<FakeMissionEngine>((ref) {
   return const FakeMissionEngine();
+});
+
+final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
+  throw StateError('LocalStorageService must be provided before app startup.');
+});
+
+final mockPersistenceRepositoryProvider = Provider<MockPersistenceRepository>((
+  ref,
+) {
+  return MockPersistenceRepository(
+    storage: ref.read(localStorageServiceProvider),
+    defaults: ref.read(fakeRepositoryProvider),
+  );
 });
 
 class AuthState {
@@ -28,7 +43,12 @@ class AuthState {
 
 class AuthNotifier extends Notifier<AuthState> {
   @override
-  AuthState build() => const AuthState(isSignedIn: false, isLoading: false);
+  AuthState build() {
+    return AuthState(
+      isSignedIn: ref.read(mockPersistenceRepositoryProvider).loadSignedIn(),
+      isLoading: false,
+    );
+  }
 
   void setLoading(bool isLoading) {
     state = state.copyWith(isLoading: isLoading);
@@ -36,9 +56,15 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void signIn() {
     state = const AuthState(isSignedIn: true, isLoading: false);
+    ref.read(mockPersistenceRepositoryProvider).saveSignedIn(true);
   }
 
   void signOut() {
+    state = const AuthState(isSignedIn: false, isLoading: false);
+    ref.read(mockPersistenceRepositoryProvider).saveSignedIn(false);
+  }
+
+  void resetForDemo() {
     state = const AuthState(isSignedIn: false, isLoading: false);
   }
 }
@@ -50,19 +76,21 @@ final authProvider = NotifierProvider<AuthNotifier, AuthState>(
 class UserProfileNotifier extends Notifier<UserProfile> {
   @override
   UserProfile build() {
-    return ref.read(fakeRepositoryProvider).loadUser();
+    return ref.read(mockPersistenceRepositoryProvider).loadUser();
   }
 
   void updateName(String name) {
     state = state.copyWith(
       name: name.trim().isEmpty ? state.name : name.trim(),
     );
+    _save();
   }
 
   void updateEmail(String email) {
     state = state.copyWith(
       email: email.trim().isEmpty ? state.email : email.trim(),
     );
+    _save();
   }
 
   void completeOnboarding({
@@ -72,10 +100,20 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     state = state.copyWith(
       activeLanguage: language,
       hasCompletedOnboarding: true,
+      userRegion: profile.userRegion,
+      baseLanguageCode: profile.baseLanguageCode,
+      targetLanguageCode: profile.targetLanguageCode,
+      targetCulture: profile.targetCulture,
+      learningGoal: profile.learningGoal,
+      currentLevel: profile.currentLevel,
+      speakingConfidence: profile.speakingConfidence,
+      dailyMinutes: profile.dailyMinutes,
+      accentPreference: profile.accentPreference,
       speakingGoal: profile.learningGoal,
       streakDays: 0,
       totalSpeakMinutes: 0,
     );
+    _save();
   }
 
   bool selectActiveLanguage(LanguageProfile language) {
@@ -88,6 +126,7 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     }
 
     state = state.copyWith(activeLanguage: language.copyWith(isActive: true));
+    _save();
     return true;
   }
 
@@ -101,10 +140,18 @@ class UserProfileNotifier extends Notifier<UserProfile> {
       streakDays: streakDays,
       activeLanguage: activeLanguage,
     );
+    _save();
   }
 
-  void resetToFreshUser() {
+  void resetToFreshUser({bool persist = true}) {
     state = ref.read(fakeRepositoryProvider).loadUser();
+    if (persist) {
+      _save();
+    }
+  }
+
+  void _save() {
+    ref.read(mockPersistenceRepositoryProvider).saveUser(state);
   }
 }
 
@@ -114,14 +161,20 @@ final userProvider = NotifierProvider<UserProfileNotifier, UserProfile>(
 
 class OnboardingNotifier extends Notifier<OnboardingProfile?> {
   @override
-  OnboardingProfile? build() => null;
+  OnboardingProfile? build() {
+    return ref.read(mockPersistenceRepositoryProvider).loadOnboardingProfile();
+  }
 
   void save(OnboardingProfile profile) {
     state = profile;
+    ref.read(mockPersistenceRepositoryProvider).saveOnboardingProfile(profile);
   }
 
-  void clear() {
+  void clear({bool persist = true}) {
     state = null;
+    if (persist) {
+      ref.read(mockPersistenceRepositoryProvider).saveOnboardingProfile(null);
+    }
   }
 }
 
@@ -158,7 +211,9 @@ final languageProvider = Provider<LanguageProfile?>((ref) {
 
 class DailyMissionsNotifier extends Notifier<List<DailyMission>> {
   @override
-  List<DailyMission> build() => const [];
+  List<DailyMission> build() {
+    return ref.read(mockPersistenceRepositoryProvider).loadDailyMissions();
+  }
 
   void createFor({
     required OnboardingProfile profile,
@@ -167,6 +222,7 @@ class DailyMissionsNotifier extends Notifier<List<DailyMission>> {
     state = ref
         .read(fakeRepositoryProvider)
         .buildMissions(profile: profile, language: language);
+    _save();
   }
 
   void markCompleted(String missionId) {
@@ -174,10 +230,18 @@ class DailyMissionsNotifier extends Notifier<List<DailyMission>> {
       for (final mission in state)
         mission.id == missionId ? mission.copyWith(isCompleted: true) : mission,
     ];
+    _save();
   }
 
-  void clear() {
+  void clear({bool persist = true}) {
     state = const [];
+    if (persist) {
+      _save();
+    }
+  }
+
+  void _save() {
+    ref.read(mockPersistenceRepositoryProvider).saveDailyMissions(state);
   }
 }
 
@@ -349,7 +413,7 @@ final speakSessionPhaseProvider = Provider<SpeakSessionPhase?>((ref) {
 class ReviewsNotifier extends Notifier<List<ReviewItem>> {
   @override
   List<ReviewItem> build() {
-    return ref.read(fakeRepositoryProvider).loadReviewItems();
+    return ref.read(mockPersistenceRepositoryProvider).loadReviewItems();
   }
 
   void saveFromSession({
@@ -375,6 +439,11 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
     state = [
       ReviewItem(
         id: 'review_${session.id}_${DateTime.now().millisecondsSinceEpoch}',
+        region: language.userRegion,
+        baseLanguageCode: language.baseLanguageCode,
+        baseLanguageName: language.baseLanguageName,
+        targetLanguageCode: language.code,
+        targetLanguageName: language.name,
         languageCode: language.code,
         languageName: language.name,
         missionTitle: session.title,
@@ -383,6 +452,7 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
       ),
       ...state,
     ];
+    _save();
   }
 
   void toggleMastered(String reviewId) {
@@ -392,6 +462,7 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
             ? item.copyWith(isMastered: !item.isMastered)
             : item,
     ];
+    _save();
 
     final mastered = state.where((item) => item.isMastered).length;
     ref.read(progressProvider.notifier).setMasteredReviewItems(mastered);
@@ -404,6 +475,7 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
             ? item.copyWith(isSavedPhrase: !item.isSavedPhrase)
             : item,
     ];
+    _save();
   }
 
   void markReviewed(String reviewId) {
@@ -413,11 +485,19 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
             ? item.copyWith(reviewedCount: item.reviewedCount + 1)
             : item,
     ];
+    _save();
     ref.read(progressProvider.notifier).incrementRepeatedCorrections();
   }
 
-  void clear() {
+  void clear({bool persist = true}) {
     state = const [];
+    if (persist) {
+      _save();
+    }
+  }
+
+  void _save() {
+    ref.read(mockPersistenceRepositoryProvider).saveReviewItems(state);
   }
 }
 
@@ -429,7 +509,10 @@ final reviewProvider = reviewsProvider;
 
 class ProgressNotifier extends Notifier<ProgressState> {
   @override
-  ProgressState build() => _emptyProgress();
+  ProgressState build() {
+    return ref.read(mockPersistenceRepositoryProvider).loadProgress() ??
+        _emptyProgress();
+  }
 
   void initialize({
     required OnboardingProfile profile,
@@ -438,6 +521,7 @@ class ProgressNotifier extends Notifier<ProgressState> {
     state = ref
         .read(fakeRepositoryProvider)
         .loadInitialProgress(profile: profile, language: language);
+    _save();
   }
 
   void recordCompletedSession({
@@ -525,18 +609,28 @@ class ProgressNotifier extends Notifier<ProgressState> {
             confidenceScore: confidence,
           ),
         );
+    _save();
   }
 
   void setMasteredReviewItems(int count) {
     state = state.copyWith(masteredReviewItems: count);
+    _save();
   }
 
   void incrementRepeatedCorrections() {
     state = state.copyWith(repeatedCorrections: state.repeatedCorrections + 1);
+    _save();
   }
 
-  void clear() {
+  void clear({bool persist = true}) {
     state = _emptyProgress();
+    if (persist) {
+      _save();
+    }
+  }
+
+  void _save() {
+    ref.read(mockPersistenceRepositoryProvider).saveProgress(state);
   }
 }
 
@@ -573,6 +667,61 @@ ProgressState _emptyProgress() {
 final fluencySnapshotsProvider = Provider<List<FluencySnapshot>>((ref) {
   return ref.watch(progressProvider).snapshots;
 });
+
+class DemoSettingsNotifier extends Notifier<DemoSettings> {
+  @override
+  DemoSettings build() {
+    return ref.read(mockPersistenceRepositoryProvider).loadSettings();
+  }
+
+  void setTransliteration(bool value) {
+    state = state.copyWith(transliteration: value);
+    _save();
+  }
+
+  void setStrictCorrections(bool value) {
+    state = state.copyWith(strictCorrections: value);
+    _save();
+  }
+
+  void setNotifications(bool value) {
+    state = state.copyWith(notifications: value);
+    _save();
+  }
+
+  void setHighContrast(bool value) {
+    state = state.copyWith(highContrast: value);
+    _save();
+  }
+
+  void setVoiceConsent(bool value) {
+    state = state.copyWith(voiceConsent: value);
+    _save();
+  }
+
+  void setSpeechSpeed(double value) {
+    state = state.copyWith(speechSpeed: value.clamp(0.45, 1));
+    _save();
+  }
+
+  void setCoachTone(String value) {
+    state = state.copyWith(coachTone: value);
+    _save();
+  }
+
+  void resetForDemo() {
+    state = DemoSettings.defaults();
+  }
+
+  void _save() {
+    ref.read(mockPersistenceRepositoryProvider).saveSettings(state);
+  }
+}
+
+final demoSettingsProvider =
+    NotifierProvider<DemoSettingsNotifier, DemoSettings>(
+      DemoSettingsNotifier.new,
+    );
 
 class MainTabNotifier extends Notifier<int> {
   @override

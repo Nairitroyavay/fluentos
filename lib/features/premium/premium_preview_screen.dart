@@ -41,7 +41,7 @@ class PremiumPreviewScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Free stays focused on one active language. Pro unlocks depth when you are ready for multiple journeys.',
+                      'Free stays focused on one active language. Pro unlocks deeper global speaking practice when you are ready for multiple journeys.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white70,
@@ -67,25 +67,25 @@ class PremiumPreviewScreen extends StatelessWidget {
                     const SizedBox(height: 14),
                     const _PlanCard(
                       title: 'Pro',
-                      price: '₹149/month',
+                      price: '₹149/month or local equivalent',
                       accent: AppTheme.primaryViolet,
                       highlighted: true,
                       features: [
                         'Multiple active languages',
                         'Deeper corrections',
                         'Fear Breaker',
-                        'Advanced roleplay packs',
+                        'Advanced global roleplay packs',
                         'Weekly reports',
                       ],
                     ),
                     const SizedBox(height: 14),
                     const _PlanCard(
                       title: 'Pro Plus',
-                      price: '₹299/month',
+                      price: '₹299/month or local equivalent',
                       accent: AppTheme.warning,
                       features: [
                         'Advanced fluency tests',
-                        'Interview and work packs',
+                        'Interview, work, and travel packs',
                         'Downloadable scenario packs',
                         'Early access to future safe practice features',
                       ],
@@ -93,7 +93,7 @@ class PremiumPreviewScreen extends StatelessWidget {
                     const SizedBox(height: 14),
                     const _PlanCard(
                       title: 'Early supporter',
-                      price: '₹4,999 one-time',
+                      price: '₹4,999 one-time or local equivalent',
                       accent: AppTheme.success,
                       features: [
                         'Limited-time launch preview',
@@ -102,6 +102,15 @@ class PremiumPreviewScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 22),
+                    const Text(
+                      'Pricing will be localized by region later.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     PrimaryActionButton(
                       label: 'Preview Pro',
                       icon: Icons.visibility_rounded,
@@ -216,7 +225,7 @@ class _PlanCard extends StatelessWidget {
               ),
               AppPill(
                 label: price,
-                icon: Icons.currency_rupee_rounded,
+                icon: Icons.currency_exchange_rounded,
                 color: accent,
               ),
             ],

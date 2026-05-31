@@ -1,17 +1,7 @@
-# fluentos_app
+# FluentOS
 
-A new Flutter project.
+FluentOS is a global speaking-first language app that helps anyone become fluent through daily AI conversation, correction, repetition, and review - one active language at a time.
 
-## Getting Started
+Tagline: Speak one language fluently before you split your focus.
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+This Flutter app is a mock frontend only. It uses local state and shared preferences for demo persistence, with no real AI, backend, payment SDK, location discovery, or human matching.
