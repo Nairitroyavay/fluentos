@@ -1,11 +1,14 @@
 # Backend Readiness
 
-FluentOS is a global speaking-first language app. The current build is still a mock/local Flutter frontend that demonstrates the product loop: onboarding, one active language, daily missions, mock speaking, correction, repetition, review, progress, profile, and premium preview.
+FluentOS is a global speaking-first language app that helps anyone become fluent through daily AI conversation, correction, repetition, and review — one active language at a time. The current build is still a mock/local Flutter frontend that demonstrates the product loop: onboarding, one active language, daily missions, mock speaking, correction, repetition, review, progress, profile, and premium preview.
+
+Short positioning: Global-first. Native-language-aware. Speaking-first.
 
 ## Current frontend status
 
 - Flutter app with Riverpod, GoRouter, SharedPreferences, fake auth, full onboarding, Today, Speak, Review, Progress, Profile, and premium preview.
 - Local persistence stores demo auth state, onboarding, user profile, missions, review items, progress, settings, quota, and entitlement placeholders.
+- Region/country is part of the user profile. Base language and target language are separate.
 - Repository contracts now exist under `lib/data/contracts`.
 - Fake implementations now exist under `lib/data/fake`.
 - Backend mode is `mockLocal` in `lib/core/config/app_environment.dart`.
@@ -15,9 +18,10 @@ FluentOS is a global speaking-first language app. The current build is still a m
 - Authentication is fake and local.
 - AI speech, transcription, correction, review creation, mission generation, quota, and entitlement are mocked.
 - No audio is captured or stored.
+- No map, social, dating, chat, nearby, or meetup feature exists in this MVP.
 - SharedPreferences is the only persistence layer.
 
-## Future Firebase
+## Backend Phase 1: Firebase First
 
 - Firebase Auth: real user identity.
 - Firestore: user profile, language profiles, missions, sessions, review items, progress snapshots, private settings, usage, subscriptions, templates, config, and feedback.
@@ -41,6 +45,21 @@ FluentOS is a global speaking-first language app. The current build is still a m
 - Payment SDK is not connected yet.
 - Subscription entitlement will later be synced from the payment provider through backend-controlled records.
 - Pricing will be localized by region later.
+- Payment comes after quotas and AI usage economics are understood.
+
+## Backend start order
+
+1. Firebase project setup
+2. Firebase Auth
+3. Firestore user profile
+4. Firestore onboarding profile
+5. Firestore language profiles
+6. Firestore missions/review/progress sync
+7. App Check
+8. Cloudflare Worker skeleton
+9. Limited AI correction endpoint
+10. Quota enforcement
+11. Payment later
 
 ## Must stay client-side
 
@@ -70,7 +89,7 @@ FluentOS is a global speaking-first language app. The current build is still a m
 - Firestore schema exists.
 - Privacy/consent model exists.
 - Quota model exists.
-- No map/social/dating route exists.
+- No map/social/dating/connect/chat/meetup route exists.
 
 ## Future analytics events
 

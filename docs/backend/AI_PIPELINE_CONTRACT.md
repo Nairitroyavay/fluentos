@@ -2,6 +2,8 @@
 
 Do not add real AI yet.
 
+FluentOS is global-first. AI requests must include region/country, base language, target language, level, goal, and consent context. AI comes later through Cloudflare after Firebase Auth + Firestore are in place.
+
 ## MVP AI pipeline
 
 1. User records short speech in the app.
@@ -12,6 +14,8 @@ Do not add real AI yet.
 6. Worker returns correction to app.
 7. App saves session, review, and progress.
 8. Worker records usage/quota.
+
+Audio is not stored by default. Transcript/correction retention follows user consent and Review needs.
 
 ## First architecture
 
@@ -37,3 +41,4 @@ Provider choice must not be hardcoded in the UI. The backend hides provider sele
 - Allow user feedback on correction.
 - Store transcripts only according to consent.
 - Store audio only if future explicit audio consent exists.
+- Do not add social, dating, map, nearby, voice-room, chat, or meetup AI behavior in MVP.

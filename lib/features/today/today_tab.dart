@@ -130,10 +130,9 @@ class _ActiveLanguageSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final identity = Row(
             children: [
               Container(
                 width: 52,
@@ -172,47 +171,70 @@ class _ActiveLanguageSummary extends StatelessWidget {
                   ],
                 ),
               ),
-              ProgressRing(
-                value: language.fluencyScore / 700,
-                center: '${language.fluencyScore}',
-                label: 'Fluency',
-                size: 82,
-              ),
             ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          );
+          final ring = ProgressRing(
+            value: language.fluencyScore / 700,
+            center: '${language.fluencyScore}',
+            label: 'Fluency',
+            size: 82,
+          );
+          final top = constraints.maxWidth < 390
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    identity,
+                    const SizedBox(height: 14),
+                    Align(alignment: Alignment.centerLeft, child: ring),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: identity),
+                    const SizedBox(width: 14),
+                    ring,
+                  ],
+                );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppPill(
-                label: language.goal,
-                icon: Icons.track_changes_rounded,
-                color: AppTheme.success,
-              ),
-              AppPill(
-                label: language.level,
-                icon: Icons.school_outlined,
-                color: AppTheme.primaryCyan,
-              ),
-              AppPill(
-                label: 'Confidence ${language.confidenceScore}%',
-                icon: Icons.psychology_alt_rounded,
-                color: AppTheme.warning,
-              ),
-              AppPill(
-                label: 'Pronunciation ${language.pronunciationScore}%',
-                icon: Icons.hearing_rounded,
-                color: AppTheme.mint,
-              ),
-              AppPill(
-                label: '${onboarding?.dailyMinutes ?? 10} min/day',
-                icon: Icons.timer_outlined,
-                color: AppTheme.primaryCyan,
+              top,
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  AppPill(
+                    label: language.goal,
+                    icon: Icons.track_changes_rounded,
+                    color: AppTheme.success,
+                  ),
+                  AppPill(
+                    label: language.level,
+                    icon: Icons.school_outlined,
+                    color: AppTheme.primaryCyan,
+                  ),
+                  AppPill(
+                    label: 'Confidence ${language.confidenceScore}%',
+                    icon: Icons.psychology_alt_rounded,
+                    color: AppTheme.warning,
+                  ),
+                  AppPill(
+                    label: 'Pronunciation ${language.pronunciationScore}%',
+                    icon: Icons.hearing_rounded,
+                    color: AppTheme.mint,
+                  ),
+                  AppPill(
+                    label: '${onboarding?.dailyMinutes ?? 10} min/day',
+                    icon: Icons.timer_outlined,
+                    color: AppTheme.primaryCyan,
+                  ),
+                ],
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -292,24 +314,19 @@ class _ReadinessCard extends StatelessWidget {
         children: [
           const SectionTitle(title: 'Speak readiness'),
           const SizedBox(height: 10),
-          Row(
+          ResponsiveMetricGrid(
             children: [
-              Expanded(
-                child: MetricCard(
-                  icon: Icons.psychology_alt_rounded,
-                  label: 'confidence baseline',
-                  value: '${language.confidenceScore}%',
-                  color: AppTheme.warning,
-                ),
+              MetricCard(
+                icon: Icons.psychology_alt_rounded,
+                label: 'confidence baseline',
+                value: '${language.confidenceScore}%',
+                color: AppTheme.warning,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: MetricCard(
-                  icon: Icons.hearing_rounded,
-                  label: 'weak area',
-                  value: weakArea,
-                  color: AppTheme.primaryCyan,
-                ),
+              MetricCard(
+                icon: Icons.hearing_rounded,
+                label: 'weak area',
+                value: weakArea,
+                color: AppTheme.primaryCyan,
               ),
             ],
           ),
@@ -341,28 +358,61 @@ class _MissionLoopPreview extends StatelessWidget {
 
     return GlassCard(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          for (var index = 0; index < steps.length; index++) ...[
-            Expanded(
-              child: Column(
-                children: [
-                  Icon(steps[index].$2, color: AppTheme.primaryCyan),
-                  const SizedBox(height: 6),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      steps[index].$1,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 330) {
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final step in steps)
+                  SizedBox(
+                    width: (constraints.maxWidth - 12) / 2,
+                    child: Column(
+                      children: [
+                        Icon(step.$2, color: AppTheme.primaryCyan),
+                        const SizedBox(height: 6),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            step.$1,
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            if (index != steps.length - 1)
-              const Icon(Icons.chevron_right_rounded, color: Colors.white38),
-          ],
-        ],
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              for (var index = 0; index < steps.length; index++) ...[
+                Expanded(
+                  child: Column(
+                    children: [
+                      Icon(steps[index].$2, color: AppTheme.primaryCyan),
+                      const SizedBox(height: 6),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          steps[index].$1,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (index != steps.length - 1)
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.white38,
+                  ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -436,46 +486,31 @@ class _ProgressSnapshot extends StatelessWidget {
       children: [
         const SectionTitle(title: 'Progress snapshot'),
         const SizedBox(height: 10),
-        Row(
+        ResponsiveMetricGrid(
           children: [
-            Expanded(
-              child: MetricCard(
-                icon: Icons.timer_outlined,
-                label: 'speaking minutes',
-                value: '${progress.speakingMinutes}',
-                color: AppTheme.primaryCyan,
-              ),
+            MetricCard(
+              icon: Icons.timer_outlined,
+              label: 'speaking minutes',
+              value: '${progress.speakingMinutes}',
+              color: AppTheme.primaryCyan,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: MetricCard(
-                icon: Icons.task_alt_rounded,
-                label: 'missions',
-                value: '$completedCount/$missionCount',
-                color: AppTheme.success,
-              ),
+            MetricCard(
+              icon: Icons.task_alt_rounded,
+              label: 'missions',
+              value: '$completedCount/$missionCount',
+              color: AppTheme.success,
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: MetricCard(
-                icon: Icons.insights_rounded,
-                label: 'fluency score',
-                value: '${progress.fluencyScore}',
-                color: AppTheme.primaryViolet,
-              ),
+            MetricCard(
+              icon: Icons.insights_rounded,
+              label: 'fluency score',
+              value: '${progress.fluencyScore}',
+              color: AppTheme.primaryViolet,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: MetricCard(
-                icon: Icons.favorite_outline_rounded,
-                label: 'confidence',
-                value: '${progress.confidenceScore}%',
-                color: AppTheme.warning,
-              ),
+            MetricCard(
+              icon: Icons.favorite_outline_rounded,
+              label: 'confidence',
+              value: '${progress.confidenceScore}%',
+              color: AppTheme.warning,
             ),
           ],
         ),
@@ -505,9 +540,13 @@ class _PhrasePackPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
             children: [
-              const Expanded(child: SectionTitle(title: 'Phrase pack')),
+              const SectionTitle(title: 'Phrase pack'),
               Switch(
                 value: showTransliteration,
                 onChanged: language.supportsTransliteration

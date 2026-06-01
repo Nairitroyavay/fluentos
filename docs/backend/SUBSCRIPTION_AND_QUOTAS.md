@@ -1,6 +1,6 @@
 # Subscription And Quotas
 
-Do not add a payment SDK yet.
+Do not add a payment SDK yet. FluentOS is global-first, so pricing will be localized by region later after quota and AI usage patterns are understood.
 
 ## Tiers
 
@@ -27,7 +27,7 @@ Do not add a payment SDK yet.
 - Downloadable scenario packs.
 - Early access to future safe practice features.
 
-FluentOS is global, so pricing will be localized by region later.
+Free means one active language at a time. Pro can later unlock multiple active language journeys.
 
 ## Quota rules
 
@@ -45,3 +45,6 @@ FluentOS is global, so pricing will be localized by region later.
 - Client-reported duration is a hint only.
 - Backend records trusted usage after AI work completes.
 - Subscription tier and premium entitlement must come from backend/payment sync.
+- Backend starts with Firebase Auth + Firestore records before any payment SDK.
+- Cloudflare enforces AI quotas later.
+- No map, social, dating, chat, nearby, voice-room, or meetup entitlement exists in MVP.

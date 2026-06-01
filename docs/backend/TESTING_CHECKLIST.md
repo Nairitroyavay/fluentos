@@ -13,9 +13,11 @@
 - Splash routes correctly.
 - Fake auth works.
 - Full onboarding works.
+- Product copy is global-first, not India-only.
 - Region/country is saved.
 - Base language is saved.
 - Target language is saved.
+- Base language and target language remain separate.
 - Active language is created.
 - 7-day plan is created.
 - Today mission is region-aware.
@@ -44,4 +46,6 @@
 - No real backend added.
 - No real AI added.
 - No payment SDK added.
-- No map/social/dating added.
+- No map/social/dating/connect/chat/meetup added.
+- No audio stored by default.
+- Backend start order remains Firebase Auth, Firestore profile/onboarding/language storage, Firestore sync, App Check, Cloudflare skeleton, limited AI correction, quota enforcement, then payment later.

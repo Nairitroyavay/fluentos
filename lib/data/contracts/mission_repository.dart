@@ -1,6 +1,10 @@
 import '../../models/models.dart';
 
 abstract class MissionRepository {
+  List<DailyMission> createInitialMissions({
+    required OnboardingProfile profile,
+    required LanguageProfile language,
+  });
   Future<List<DailyMission>> loadMissions(
     String userId,
     String languageProfileId,

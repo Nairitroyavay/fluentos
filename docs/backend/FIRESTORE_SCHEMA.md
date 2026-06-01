@@ -1,15 +1,24 @@
 # Firestore Schema Plan
 
-Do not add the Firestore SDK yet. This is the planned schema for the first backend implementation.
+Do not add the Firestore SDK yet. This is the planned schema for the first backend implementation. FluentOS is global-first, native-language-aware, and speaking-first.
 
 ## `users/{userId}`
 
 - Purpose: private user profile and current app identity.
-- Fields: `id`, `name`, `email`, `userRegion`, `baseLanguageCode`, `activeLanguageProfileId`, `subscriptionTier`, `hasCompletedOnboarding`, `consentSettings`, `createdAt`, `updatedAt`.
+- Fields: `id`, `name`, `email`, `userRegion`, `baseLanguageCode`, `targetLanguageCode`, `activeLanguageProfileId`, `subscriptionTier`, `hasCompletedOnboarding`, `consentSettings`, `createdAt`, `updatedAt`.
 - Indexes: none beyond document ID for MVP.
 - Owner: user reads/writes safe profile fields; server writes trusted entitlement-related fields.
 - Retention: until account deletion.
 - Sensitivity: high, personal data.
+
+## `users/{userId}/onboarding/profile`
+
+- Purpose: completed onboarding answers and generated plan inputs.
+- Fields: `userRegion`, `baseLanguageCode`, `baseLanguageName`, `targetLanguageCode`, `targetLanguageName`, `targetCulture`, `learningGoal`, `currentLevel`, `speakingConfidence`, `dailyMinutes`, `accentPreference`, `voiceBaseline`, `sevenDayPlan`, `onboardingCompleted`, `createdAt`, `updatedAt`.
+- Indexes: none.
+- Owner: user writes profile answers; server may generate plan content later.
+- Retention: until account deletion or onboarding reset.
+- Sensitivity: medium/high learning profile.
 
 ## `users/{userId}/languageProfiles/{languageProfileId}`
 
@@ -133,3 +142,7 @@ Do not add the Firestore SDK yet. This is the planned schema for the first backe
 ## Audio storage
 
 Voice/audio should not be stored by default. If audio storage is added later, it must be explicit consent only, separate from transcript/review consent, with clear retention and deletion controls.
+
+## MVP exclusions
+
+No map, social, dating, chat, nearby-user, voice-room, or meetup collections are part of the MVP schema.

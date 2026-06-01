@@ -2,6 +2,7 @@ import '../../models/models.dart';
 
 abstract class ReviewRepository {
   Future<List<ReviewItem>> loadReviewItems(String userId);
+  Future<void> saveReviewItems(String userId, List<ReviewItem> items);
   Future<void> saveReviewItem(String userId, ReviewItem item);
   Future<void> markReviewed(String userId, String reviewItemId);
   Future<void> toggleMastered(String userId, String reviewItemId);

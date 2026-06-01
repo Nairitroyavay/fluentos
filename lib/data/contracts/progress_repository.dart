@@ -1,6 +1,10 @@
 import '../../models/models.dart';
 
 abstract class ProgressRepository {
+  ProgressState createInitialProgress({
+    required OnboardingProfile profile,
+    required LanguageProfile language,
+  });
   Future<ProgressState?> loadProgress(String userId, String languageProfileId);
   Future<void> saveProgress(
     String userId,

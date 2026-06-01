@@ -15,6 +15,7 @@ import 'package:fluentos_app/main.dart';
 import 'package:fluentos_app/models/models.dart';
 import 'package:fluentos_app/providers/providers.dart';
 import 'package:fluentos_app/services/local_storage_service.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -72,6 +73,40 @@ void main() {
     addTearDown(restartContainer.dispose);
 
     expect(restartContainer.read(authProvider).isSignedIn, isTrue);
+  });
+
+  test('sign-out works', () async {
+    final container = await createTestContainer();
+
+    container.read(authProvider.notifier).signIn();
+    await flushProviderWork();
+    container.read(authProvider.notifier).signOut();
+    await flushProviderWork();
+
+    expect(container.read(authProvider).isSignedIn, isFalse);
+  });
+
+  test('reset demo data clears local state', () async {
+    SharedPreferences.setMockInitialValues({});
+    final localStorage = await LocalStorageService.create();
+    final container = ProviderContainer(
+      overrides: [localStorageServiceProvider.overrideWithValue(localStorage)],
+    );
+    addTearDown(container.dispose);
+
+    seedOnboardedUser(container);
+    await completeSpeakSession(container);
+    await container.read(localPersistenceRepositoryProvider).clearAll();
+
+    final resetContainer = ProviderContainer(
+      overrides: [localStorageServiceProvider.overrideWithValue(localStorage)],
+    );
+    addTearDown(resetContainer.dispose);
+
+    expect(resetContainer.read(authProvider).isSignedIn, isFalse);
+    expect(resetContainer.read(userProvider).hasCompletedOnboarding, isFalse);
+    expect(resetContainer.read(reviewsProvider), isEmpty);
+    expect(resetContainer.read(progressProvider).completedMissions, 0);
   });
 
   test('onboarding creates active language and missions', () async {
@@ -164,14 +199,97 @@ void main() {
     final speakNotifier = container.read(speakSessionProvider.notifier);
 
     speakNotifier.startMission(mission);
+    await flushProviderWork();
     speakNotifier.startListening();
     speakNotifier.finishListening(mission: mission, language: language);
+    await flushProviderWork();
     speakNotifier.showCorrection(mission: mission, language: language);
+    await flushProviderWork();
 
     final session = container.read(speakSessionProvider)!;
     expect(session.correction, isNotNull);
     expect(session.correction?.naturalText, isNotEmpty);
     expect(session.transcriptConfidence, isNotNull);
+  });
+
+  test('Today mission starts Speak session', () async {
+    final container = await createTestContainer();
+    seedOnboardedUser(container);
+
+    final mission = container.read(dailyMissionProvider)!;
+    container.read(speakSessionProvider.notifier).startMission(mission);
+    await flushProviderWork();
+
+    final session = container.read(speakSessionProvider);
+    expect(session?.missionId, mission.id);
+    expect(session?.phase, SpeakSessionPhase.ready);
+  });
+
+  test('speak session creates transcript', () async {
+    final container = await createTestContainer();
+    seedOnboardedUser(container);
+
+    final language = container.read(languageProvider)!;
+    final mission = container.read(dailyMissionProvider)!;
+    final speakNotifier = container.read(speakSessionProvider.notifier);
+
+    speakNotifier.startMission(mission);
+    await flushProviderWork();
+    speakNotifier.startListening();
+    speakNotifier.finishListening(mission: mission, language: language);
+    await flushProviderWork();
+
+    final session = container.read(speakSessionProvider)!;
+    expect(session.transcriptText, isNotEmpty);
+    expect(session.phase, SpeakSessionPhase.transcriptReady);
+  });
+
+  test('low confidence transcript shows trust message state', () async {
+    final container = await createTestContainer();
+    seedOnboardedUser(container);
+
+    final language = container.read(languageProvider)!;
+    final mission = container.read(dailyMissionProvider)!;
+    final speakNotifier = container.read(speakSessionProvider.notifier);
+
+    speakNotifier.startMission(mission, mode: SpeakMode.freeTalk);
+    await flushProviderWork();
+    speakNotifier.startListening();
+    speakNotifier.finishListening(mission: mission, language: language);
+    await flushProviderWork();
+
+    final session = container.read(speakSessionProvider)!;
+    expect(session.transcriptConfidenceLow, isTrue);
+    expect(session.transcriptConfidence, lessThan(0.7));
+  });
+
+  test('repeat attempt works and completion works', () async {
+    final container = await createTestContainer();
+    seedOnboardedUser(container);
+
+    final language = container.read(languageProvider)!;
+    final mission = container.read(dailyMissionProvider)!;
+    final speakNotifier = container.read(speakSessionProvider.notifier);
+
+    speakNotifier.startMission(mission);
+    await flushProviderWork();
+    speakNotifier.startListening();
+    speakNotifier.finishListening(mission: mission, language: language);
+    await flushProviderWork();
+    speakNotifier.showCorrection(mission: mission, language: language);
+    await flushProviderWork();
+    speakNotifier.startRepeatAttempt();
+
+    expect(
+      container.read(speakSessionProvider)?.phase,
+      SpeakSessionPhase.repeatAttempt,
+    );
+
+    speakNotifier.finishRepeatAttempt();
+    expect(
+      container.read(speakSessionProvider)?.phase,
+      SpeakSessionPhase.completed,
+    );
   });
 
   test('completing speak session creates review item', () async {
@@ -180,7 +298,7 @@ void main() {
 
     expect(container.read(reviewsProvider), isEmpty);
 
-    completeSpeakSession(container);
+    await completeSpeakSession(container);
 
     final reviews = container.read(reviewsProvider);
     expect(reviews, hasLength(1));
@@ -194,13 +312,34 @@ void main() {
     seedOnboardedUser(container);
 
     final before = container.read(progressProvider);
-    completeSpeakSession(container);
+    await completeSpeakSession(container);
     final after = container.read(progressProvider);
 
     expect(after.completedMissions, before.completedMissions + 1);
     expect(after.correctionsSaved, before.correctionsSaved + 1);
     expect(after.speakingMinutes, greaterThan(before.speakingMinutes));
     expect(after.streakDays, 1);
+  });
+
+  test('save to Review marks mission completed', () async {
+    final container = await createTestContainer();
+    seedOnboardedUser(container);
+
+    final missionId = container.read(dailyMissionProvider)!.id;
+    await completeSpeakSession(container);
+
+    expect(container.read(reviewsProvider), hasLength(1));
+    expect(
+      container
+          .read(dailyMissionsProvider)
+          .firstWhere((mission) => mission.id == missionId)
+          .isCompleted,
+      isTrue,
+    );
+    expect(
+      container.read(speakSessionProvider)?.phase,
+      SpeakSessionPhase.savedToReview,
+    );
   });
 
   test('free user cannot add second active language', () async {
@@ -257,8 +396,77 @@ void main() {
     );
   });
 
+  test('signed out protected route redirects to auth', () {
+    expect(
+      appRedirectFor(
+        path: '/home',
+        isSignedIn: false,
+        hasCompletedOnboarding: false,
+      ),
+      '/auth',
+    );
+    expect(
+      appRedirectFor(
+        path: '/premium',
+        isSignedIn: false,
+        hasCompletedOnboarding: true,
+      ),
+      '/auth',
+    );
+  });
+
+  test('signed in but onboarding incomplete redirects to onboarding', () {
+    expect(
+      appRedirectFor(
+        path: '/home',
+        isSignedIn: true,
+        hasCompletedOnboarding: false,
+      ),
+      '/onboarding',
+    );
+  });
+
+  test('onboarded user routes to home from auth and onboarding', () {
+    expect(
+      appRedirectFor(
+        path: '/auth',
+        isSignedIn: true,
+        hasCompletedOnboarding: true,
+      ),
+      '/home',
+    );
+    expect(
+      appRedirectFor(
+        path: '/onboarding',
+        isSignedIn: true,
+        hasCompletedOnboarding: true,
+      ),
+      '/home',
+    );
+    expect(
+      appRedirectFor(
+        path: '/onboarding',
+        isSignedIn: true,
+        hasCompletedOnboarding: true,
+        isAddLanguageFlow: true,
+      ),
+      isNull,
+    );
+  });
+
+  test('premium preview can open for signed-in users', () {
+    expect(
+      appRedirectFor(
+        path: '/premium',
+        isSignedIn: true,
+        hasCompletedOnboarding: true,
+      ),
+      isNull,
+    );
+  });
+
   test('no social map or dating route exists', () {
-    const blocked = ['map', 'social', 'dating', 'nearby', 'chat'];
+    const blocked = ['map', 'social', 'dating', 'connect', 'chat', 'meetup'];
 
     for (final route in appRoutePaths) {
       for (final token in blocked) {
@@ -297,7 +505,7 @@ void main() {
     addTearDown(firstContainer.dispose);
 
     seedOnboardedUser(firstContainer);
-    completeSpeakSession(firstContainer);
+    await completeSpeakSession(firstContainer);
     await Future<void>.delayed(Duration.zero);
 
     final restartContainer = ProviderContainer(
@@ -322,6 +530,32 @@ void main() {
     expect(resetContainer.read(progressProvider).completedMissions, 0);
   });
 
+  test('settings survive restart', () async {
+    SharedPreferences.setMockInitialValues({});
+    final localStorage = await LocalStorageService.create();
+    final firstContainer = ProviderContainer(
+      overrides: [localStorageServiceProvider.overrideWithValue(localStorage)],
+    );
+    addTearDown(firstContainer.dispose);
+
+    firstContainer.read(demoSettingsProvider.notifier).setTransliteration(true);
+    firstContainer
+        .read(demoSettingsProvider.notifier)
+        .setStrictCorrections(false);
+    firstContainer.read(demoSettingsProvider.notifier).setSpeechSpeed(0.65);
+    await flushProviderWork();
+
+    final restartContainer = ProviderContainer(
+      overrides: [localStorageServiceProvider.overrideWithValue(localStorage)],
+    );
+    addTearDown(restartContainer.dispose);
+
+    final settings = restartContainer.read(demoSettingsProvider);
+    expect(settings.transliteration, isTrue);
+    expect(settings.strictCorrections, isFalse);
+    expect(settings.speechSpeed, 0.65);
+  });
+
   testWidgets('adding second language as free user opens premium preview', (
     tester,
   ) async {
@@ -337,6 +571,25 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('FluentOS Pro Preview'), findsOneWidget);
+  });
+
+  testWidgets('no real payment is triggered from premium preview', (
+    tester,
+  ) async {
+    await pumpFluentOS(tester);
+    final container = appContainer(tester);
+    seedOnboardedUser(container);
+    await pumpSplashDelay(tester);
+
+    container.read(routerProvider).go('/premium');
+    await tester.pumpAndSettle();
+    await tapVisibleText(tester, 'Preview Pro');
+
+    expect(container.read(userProvider).subscription, SubscriptionState.free);
+    expect(
+      find.text('No payment SDK is connected in this mock frontend.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('coming soon languages do not complete target selection', (
@@ -371,6 +624,99 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('Auth renders', (tester) async {
+    await pumpFluentOS(tester);
+    await openAuth(tester);
+
+    expect(find.text('Start with your voice.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Onboarding renders', (tester) async {
+    await pumpFluentOS(tester);
+    await openAuth(tester);
+    await tapVisibleText(tester, 'Continue');
+    await pumpAuthDelay(tester);
+
+    expect(find.text('Start my fluency journey'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Today renders', (tester) async {
+    final container = await pumpOnboardedHome(tester);
+
+    expect(find.textContaining('Good to see you'), findsOneWidget);
+    expect(container.read(mainTabProvider), 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Speak renders', (tester) async {
+    final container = await pumpOnboardedHome(tester);
+    final mission = container.read(dailyMissionProvider)!;
+    container.read(speakSessionProvider.notifier).startMission(mission);
+    await tester.pump();
+    container.read(mainTabProvider.notifier).setIndex(1);
+    await tester.pump();
+
+    expect(find.text('Speak'), findsAtLeastNWidgets(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Review renders', (tester) async {
+    final container = await pumpOnboardedHome(tester);
+    container.read(mainTabProvider.notifier).setIndex(2);
+    await tester.pump();
+
+    expect(find.text('Review'), findsAtLeastNWidgets(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Progress renders', (tester) async {
+    final container = await pumpOnboardedHome(tester);
+    container.read(mainTabProvider.notifier).setIndex(3);
+    await tester.pump();
+
+    expect(find.textContaining('speaker'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Profile renders', (tester) async {
+    final container = await pumpOnboardedHome(tester);
+    container.read(mainTabProvider.notifier).setIndex(4);
+    await tester.pump();
+
+    expect(find.text('Profile'), findsAtLeastNWidgets(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Premium renders', (tester) async {
+    final container = await pumpOnboardedHome(tester);
+    container.read(routerProvider).go('/premium');
+    await tester.pumpAndSettle();
+
+    expect(find.text('FluentOS Pro Preview'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('small Android screen smoke has no overflow exception', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final container = await pumpOnboardedHome(tester);
+    for (var index = 0; index < 5; index++) {
+      container.read(mainTabProvider.notifier).setIndex(index);
+      await tester.pump();
+      final exception = tester.takeException();
+      expect(exception, isNull, reason: 'tab $index');
+    }
+  });
 }
 
 Future<void> pumpFluentOS(WidgetTester tester) async {
@@ -383,6 +729,15 @@ Future<void> pumpFluentOS(WidgetTester tester) async {
       child: const FluentOSApp(),
     ),
   );
+}
+
+Future<ProviderContainer> pumpOnboardedHome(WidgetTester tester) async {
+  await pumpFluentOS(tester);
+  final container = appContainer(tester);
+  seedOnboardedUser(container);
+  await pumpSplashDelay(tester);
+  await tester.pumpAndSettle();
+  return container;
 }
 
 ProviderContainer appContainer(WidgetTester tester) {
@@ -479,15 +834,18 @@ OnboardingProfile testOnboardingProfile() {
   );
 }
 
-void completeSpeakSession(ProviderContainer container) {
+Future<void> completeSpeakSession(ProviderContainer container) async {
   final language = container.read(languageProvider)!;
   final mission = container.read(dailyMissionProvider)!;
   final speakNotifier = container.read(speakSessionProvider.notifier);
 
   speakNotifier.startMission(mission);
+  await flushProviderWork();
   speakNotifier.startListening();
   speakNotifier.finishListening(mission: mission, language: language);
+  await flushProviderWork();
   speakNotifier.showCorrection(mission: mission, language: language);
+  await flushProviderWork();
   speakNotifier.startRepeatAttempt();
   speakNotifier.finishRepeatAttempt();
 
@@ -504,4 +862,10 @@ void completeSpeakSession(ProviderContainer container) {
         language: language,
       );
   speakNotifier.markSavedToReview();
+  await flushProviderWork();
+}
+
+Future<void> flushProviderWork() async {
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(Duration.zero);
 }

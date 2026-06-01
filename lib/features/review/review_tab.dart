@@ -144,33 +144,26 @@ class _ReviewStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return ResponsiveMetricGrid(
+      minTileWidth: 128,
       children: [
-        Expanded(
-          child: MetricCard(
-            icon: Icons.pending_actions_rounded,
-            label: 'due today',
-            value: '$dueCount',
-            color: AppTheme.warning,
-          ),
+        MetricCard(
+          icon: Icons.pending_actions_rounded,
+          label: 'due today',
+          value: '$dueCount',
+          color: AppTheme.warning,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: MetricCard(
-            icon: Icons.bookmark_added_rounded,
-            label: 'saved phrases',
-            value: '$savedCount',
-            color: AppTheme.primaryCyan,
-          ),
+        MetricCard(
+          icon: Icons.bookmark_added_rounded,
+          label: 'saved phrases',
+          value: '$savedCount',
+          color: AppTheme.primaryCyan,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: MetricCard(
-            icon: Icons.check_circle_rounded,
-            label: 'mastered',
-            value: '$masteredCount',
-            color: AppTheme.success,
-          ),
+        MetricCard(
+          icon: Icons.check_circle_rounded,
+          label: 'mastered',
+          value: '$masteredCount',
+          color: AppTheme.success,
         ),
       ],
     );

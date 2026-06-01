@@ -1,11 +1,21 @@
 import '../../models/models.dart';
+import '../../repositories/fake_fluentos_repository.dart';
 import '../contracts/progress_repository.dart';
 import '../local/local_persistence_repository.dart';
 
 class FakeProgressRepository implements ProgressRepository {
   final LocalPersistenceRepository local;
+  final FakeFluentOSRepository defaults;
 
-  const FakeProgressRepository({required this.local});
+  const FakeProgressRepository({required this.local, required this.defaults});
+
+  @override
+  ProgressState createInitialProgress({
+    required OnboardingProfile profile,
+    required LanguageProfile language,
+  }) {
+    return defaults.loadInitialProgress(profile: profile, language: language);
+  }
 
   @override
   Future<ProgressState?> loadProgress(

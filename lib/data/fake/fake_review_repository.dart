@@ -16,6 +16,13 @@ class FakeReviewRepository implements ReviewRepository {
   }
 
   @override
+  Future<void> saveReviewItems(String userId, List<ReviewItem> items) {
+    return local.saveReviewItems([
+      for (final item in items) item.copyWith(userId: userId),
+    ]);
+  }
+
+  @override
   Future<void> saveReviewItem(String userId, ReviewItem item) {
     final next = item.copyWith(userId: userId);
     final reviews = [

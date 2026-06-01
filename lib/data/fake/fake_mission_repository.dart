@@ -10,6 +10,14 @@ class FakeMissionRepository implements MissionRepository {
   const FakeMissionRepository({required this.local, required this.defaults});
 
   @override
+  List<DailyMission> createInitialMissions({
+    required OnboardingProfile profile,
+    required LanguageProfile language,
+  }) {
+    return defaults.buildMissions(profile: profile, language: language);
+  }
+
+  @override
   Future<List<DailyMission>> loadMissions(
     String userId,
     String languageProfileId,

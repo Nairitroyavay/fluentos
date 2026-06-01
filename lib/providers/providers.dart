@@ -22,6 +22,7 @@ import '../data/fake/fake_speak_repository.dart';
 import '../data/fake/fake_subscription_repository.dart';
 import '../data/fake/fake_user_repository.dart';
 import '../data/local/local_persistence_repository.dart';
+import '../domain/services/mission_engine.dart';
 import '../models/models.dart';
 import '../repositories/fake_fluentos_repository.dart';
 import '../repositories/fake_mission_engine.dart';
@@ -38,6 +39,10 @@ final fakeRepositoryProvider = Provider<FakeFluentOSRepository>((ref) {
 
 final fakeMissionEngineProvider = Provider<FakeMissionEngine>((ref) {
   return const FakeMissionEngine();
+});
+
+final missionEngineProvider = Provider<MissionEngine>((ref) {
+  return MissionEngine(fakeEngine: ref.read(fakeMissionEngineProvider));
 });
 
 final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
@@ -128,6 +133,7 @@ final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
 final fakeProgressRepositoryProvider = Provider<FakeProgressRepository>((ref) {
   return FakeProgressRepository(
     local: ref.read(localPersistenceRepositoryProvider),
+    defaults: ref.read(fakeRepositoryProvider),
   );
 });
 
@@ -331,7 +337,7 @@ final subscriptionProvider = Provider<SubscriptionState>((ref) {
 });
 
 final languageOptionsProvider = Provider<List<LanguageOption>>((ref) {
-  return ref.read(fakeRepositoryProvider).loadLanguageOptions();
+  return ref.read(languageRepositoryProvider).cachedLanguageOptions();
 });
 
 final baseLanguageOptionsProvider = Provider<List<LanguageOption>>((ref) {
@@ -363,8 +369,8 @@ class DailyMissionsNotifier extends Notifier<List<DailyMission>> {
     required LanguageProfile language,
   }) {
     state = ref
-        .read(fakeRepositoryProvider)
-        .buildMissions(profile: profile, language: language);
+        .read(missionRepositoryContractProvider)
+        .createInitialMissions(profile: profile, language: language);
     _save();
   }
 
@@ -429,9 +435,21 @@ class SpeakSessionNotifier extends Notifier<SpeakSession?> {
     DailyMission mission, {
     SpeakMode mode = SpeakMode.dailyMission,
   }) {
-    state = ref
-        .read(fakeRepositoryProvider)
-        .buildSpeakSession(mission, mode: mode);
+    final current = state;
+    final pending = current?.copyWith(phase: SpeakSessionPhase.ready);
+    if (pending != null) {
+      state = pending;
+    }
+    unawaited(_startMission(mission, mode: mode));
+  }
+
+  Future<void> _startMission(
+    DailyMission mission, {
+    required SpeakMode mode,
+  }) async {
+    state = await ref
+        .read(speakRepositoryProvider)
+        .createSession(mission, mode);
   }
 
   void changeMode(SpeakMode mode, DailyMission? mission) {
@@ -441,9 +459,7 @@ class SpeakSessionNotifier extends Notifier<SpeakSession?> {
       return;
     }
 
-    state = ref
-        .read(fakeRepositoryProvider)
-        .buildSpeakSession(selectedMission, mode: mode);
+    unawaited(_startMission(selectedMission, mode: mode));
   }
 
   void startListening() {
@@ -464,36 +480,34 @@ class SpeakSessionNotifier extends Notifier<SpeakSession?> {
       return;
     }
 
-    final transcript = ref
-        .read(fakeRepositoryProvider)
-        .fakeTranscriptForMission(
-          mission: mission,
-          language: language,
-          mode: session.mode,
-        );
+    unawaited(_finishListening(session));
+  }
+
+  Future<void> _finishListening(SpeakSession session) async {
+    final result = await ref
+        .read(speakRepositoryProvider)
+        .transcribeMockOrRemote(session);
+    final latest = state;
+    if (latest == null || latest.id != session.id) {
+      return;
+    }
     final now = DateTime.now();
     final learnerTurn = SpeakTurn(
       id: 'learner_${session.missionId}_${session.attemptCount + 1}',
       speaker: SpeakSpeaker.learner,
-      text: transcript,
+      text: result.transcriptText,
       createdAt: now,
     );
 
-    state = session.copyWith(
+    state = latest.copyWith(
       turns: [...session.turns, learnerTurn],
-      transcriptText: transcript,
-      transcriptConfidence:
-          session.mode == SpeakMode.freeTalk ||
-              session.mode == SpeakMode.pronunciationDrill
-          ? 0.64
-          : 0.91,
+      transcriptText: result.transcriptText,
+      transcriptConfidence: result.transcriptConfidence,
       clearCorrection: true,
       phase: SpeakSessionPhase.transcriptReady,
       attemptCount: session.attemptCount + 1,
       isSavedToReview: false,
-      transcriptConfidenceLow:
-          session.mode == SpeakMode.freeTalk ||
-          session.mode == SpeakMode.pronunciationDrill,
+      transcriptConfidenceLow: result.confidenceLow,
     );
   }
 
@@ -507,16 +521,38 @@ class SpeakSessionNotifier extends Notifier<SpeakSession?> {
       return;
     }
 
-    final correction = ref
-        .read(fakeRepositoryProvider)
-        .fakeCorrectionForSession(
-          mission: mission,
-          language: language,
-          mode: session.mode,
-          transcript: transcript,
-        );
+    final request = CorrectionRequest(
+      id: 'request_${session.id}_${DateTime.now().millisecondsSinceEpoch}',
+      userId: session.userId,
+      languageProfileId: language.id,
+      missionId: mission.id,
+      sessionId: session.id,
+      mode: session.mode,
+      region: language.userRegion,
+      baseLanguageCode: language.baseLanguageCode,
+      targetLanguageCode: language.code,
+      learningGoal: language.goal,
+      currentLevel: language.level,
+      transcriptText: transcript,
+      userWeakAreas: language.weakSounds,
+    );
 
-    state = session.copyWith(
+    unawaited(_showCorrection(session, request));
+  }
+
+  Future<void> _showCorrection(
+    SpeakSession session,
+    CorrectionRequest request,
+  ) async {
+    final correction = await ref
+        .read(speakRepositoryProvider)
+        .correctTranscript(request);
+    final latest = state;
+    if (latest == null || latest.id != session.id) {
+      return;
+    }
+
+    state = latest.copyWith(
       correction: correction,
       phase: SpeakSessionPhase.corrected,
     );
@@ -662,7 +698,9 @@ class ReviewsNotifier extends Notifier<List<ReviewItem>> {
 
   void _save() {
     unawaited(
-      ref.read(localPersistenceRepositoryProvider).saveReviewItems(state),
+      ref
+          .read(reviewRepositoryProvider)
+          .saveReviewItems(ref.read(userProvider).id, state),
     );
   }
 }
@@ -685,8 +723,8 @@ class ProgressNotifier extends Notifier<ProgressState> {
     required LanguageProfile language,
   }) {
     state = ref
-        .read(fakeRepositoryProvider)
-        .loadInitialProgress(profile: profile, language: language)
+        .read(progressRepositoryProvider)
+        .createInitialProgress(profile: profile, language: language)
         .copyWith(userId: language.userId, languageProfileId: language.id);
     _save();
   }

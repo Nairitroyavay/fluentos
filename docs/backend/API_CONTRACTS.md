@@ -2,9 +2,13 @@
 
 Do not implement these calls yet. Future app requests must include an auth token. The Cloudflare Worker must verify auth/App Check later. The client must never call an AI vendor directly.
 
+FluentOS is global-first. API payloads must keep `region`, `baseLanguageCode`, and `targetLanguageCode` separate so missions, corrections, review, pricing, and quotas can localize later.
+
 ## `POST /v1/speak/transcribe`
 
 Purpose: upload or reference short audio and receive a transcript.
+
+Audio is processed for the request and must not be stored by default.
 
 Request:
 
@@ -115,8 +119,11 @@ Response fields: `success`, `feedbackId`.
 
 ## API rules
 
+- Backend starts with Firebase Auth + Firestore. Cloudflare AI APIs come later.
 - Cloudflare validates auth/App Check before AI or quota operations.
 - Worker enforces quota server-side before vendor calls.
 - Worker stores trusted usage records after vendor calls.
 - Client-generated scores, tiers, entitlements, and usage seconds are never authoritative.
 - Responses must include `requestId` for debugging and support.
+- No map, social, dating, chat, nearby-user, voice-room, or meetup endpoint is in MVP.
+- Payment APIs come after quota and AI usage behavior are understood.

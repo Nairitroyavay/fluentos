@@ -1,6 +1,8 @@
 # Security And Privacy
 
-Do not add Firebase, Cloudflare, analytics, payment, maps, social, or dating yet.
+Do not add Firebase, Cloudflare, analytics, payment, maps, social, dating, chat, nearby users, voice rooms, or meetups in this frontend pass.
+
+FluentOS is global-first. Region/country is part of the user profile, base language and target language are separate, and privacy behavior must work globally before localized policy additions.
 
 ## Consent model
 
@@ -31,7 +33,8 @@ Do not add Firebase, Cloudflare, analytics, payment, maps, social, or dating yet
 - Opt-in for model improvement only.
 - Region-aware privacy later.
 - Minors/social features are not supported now.
-- No map/social/dating.
+- No map/social/dating/connect/chat/meetup.
+- No chat, nearby users, voice rooms, or meetups.
 
 ## Planned Firestore rules strategy
 
@@ -51,7 +54,10 @@ Backend enforcement must not trust client-calculated AI usage, subscription tier
 ## Backend trust boundary
 
 - Auth identity comes from Firebase Auth later.
+- Backend starts with Firebase Auth + Firestore first.
 - App Check must be verified by Cloudflare/Firebase later.
 - AI provider keys live only in backend infrastructure.
 - Usage/quota writes are backend-owned.
 - Payment entitlement writes are backend/payment-owned.
+- AI comes later through Cloudflare.
+- Payment comes later after quotas and AI usage are understood.

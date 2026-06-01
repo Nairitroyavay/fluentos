@@ -10,8 +10,13 @@ class FakeLanguageRepository implements LanguageRepository {
   const FakeLanguageRepository({required this.local, required this.defaults});
 
   @override
-  Future<List<LanguageOption>> loadLanguageOptions() async {
+  List<LanguageOption> cachedLanguageOptions() {
     return defaults.loadLanguageOptions();
+  }
+
+  @override
+  Future<List<LanguageOption>> loadLanguageOptions() async {
+    return cachedLanguageOptions();
   }
 
   @override
@@ -49,6 +54,7 @@ class FakeLanguageRepository implements LanguageRepository {
     );
   }
 
+  @override
   LanguageProfile createLanguageProfile(
     String userId,
     OnboardingProfile profile,
@@ -56,10 +62,12 @@ class FakeLanguageRepository implements LanguageRepository {
     return defaults.createLanguageProfile(profile).copyWith(userId: userId);
   }
 
+  @override
   String targetCultureFor(LanguageOption target, String userRegion) {
     return defaults.targetCultureFor(target, userRegion);
   }
 
+  @override
   String accentPreferenceFor(LanguageOption target, String userRegion) {
     return defaults.accentPreferenceFor(target, userRegion);
   }

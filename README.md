@@ -13,7 +13,7 @@ Tagline: Speak one language fluently before you split your focus.
 - No backend.
 - No real AI.
 - No payment.
-- No map/social/dating.
+- No map/social/dating/chat/meetup.
 
 ## Backend plan
 
